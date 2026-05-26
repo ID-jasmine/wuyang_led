@@ -1,0 +1,10 @@
+/*
+
+!/source/
+/source/*
+!/source/main.c
+
+
+!.gitignore
+/.vscode/*
+!/.vscode/c_cpp_properties.json
