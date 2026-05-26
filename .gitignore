@@ -16,5 +16,6 @@
 !/MDK/gpio_output.uvoptx
 
 !.gitignore
+!.clang-format
 /.vscode/*
 !/.vscode/c_cpp_properties.json

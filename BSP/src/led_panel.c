@@ -87,10 +87,12 @@ static const stc_led_panel_map_t s_astLedPanelMap[BSP_TM3100_LED_COUNT] = {
 	LED_PANEL_MAP_ENTRY(237u), LED_PANEL_MAP_ENTRY(238u), LED_PANEL_MAP_ENTRY(239u),
 };
 
-static en_result_t LedPanel_SetImpl(uint16_t led_id, boolean_t on) {
+static en_result_t LedPanel_SetImpl(uint16_t led_id, boolean_t on)
+{
 	const stc_led_panel_map_t *pstcMap;
 
-	if (led_id >= g_stcLedPanel.count) {
+	if (led_id >= g_stcLedPanel.count)
+	{
 		return ErrorInvalidParameter;
 	}
 
@@ -111,30 +113,37 @@ stc_led_panel_t g_stcLedPanel = {
 	BSP_TM3100_LED_COUNT,
 };
 
-en_result_t LedPanel_Init(void) {
+en_result_t LedPanel_Init(void)
+{
 	return g_stcLedPanel.ops->init();
 }
 
-en_result_t LedPanel_Set(uint16_t led_id, boolean_t on) {
+en_result_t LedPanel_Set(uint16_t led_id, boolean_t on)
+{
 	return g_stcLedPanel.ops->set(led_id, on);
 }
 
-en_result_t LedPanel_SetChipChannel(uint8_t chip, uint8_t channel, boolean_t on) {
+en_result_t LedPanel_SetChipChannel(uint8_t chip, uint8_t channel, boolean_t on)
+{
 	return g_stcLedPanel.ops->set_chip_channel(chip, channel, on);
 }
 
-en_result_t LedPanel_Clear(void) {
+en_result_t LedPanel_Clear(void)
+{
 	return g_stcLedPanel.ops->clear();
 }
 
-en_result_t LedPanel_Fill(void) {
+en_result_t LedPanel_Fill(void)
+{
 	return g_stcLedPanel.ops->fill();
 }
 
-en_result_t LedPanel_Refresh(void) {
+en_result_t LedPanel_Refresh(void)
+{
 	return g_stcLedPanel.ops->refresh();
 }
 
-en_result_t LedPanel_OutputEnable(boolean_t enable) {
+en_result_t LedPanel_OutputEnable(boolean_t enable)
+{
 	return g_stcLedPanel.ops->output_enable(enable);
 }
