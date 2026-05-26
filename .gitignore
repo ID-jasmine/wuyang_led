@@ -4,6 +4,16 @@
 /source/*
 !/source/main.c
 
+!/BSP/
+!/BSP/inc/
+!/BSP/inc/*
+!/BSP/src/
+!/BSP/src/*
+
+!/MDK/
+/MDK/*
+!/MDK/gpio_output.uvprojx
+!/MDK/gpio_output.uvoptx
 
 !.gitignore
 /.vscode/*
