@@ -2,18 +2,14 @@
 
 int32_t main(void)
 {
-    (void)LedPanel_Init();
 
-    (void)LedPanel_Clear();
-    (void)LedPanel_SetChipChannel(0u, 0u, TRUE);
-    (void)LedPanel_SetChipChannel(14u, 15u, TRUE);
-    (void)LedPanel_Refresh();
-
-    while(1)
-    {
-
-    }
+	while (1)
+	{
+	}
 }
 
+// (void)LedPanel_Init();
 
-
+// (void)LedPanel_Clear();
+// (void)LedPanel_Set(LedPanelIdAbs, TRUE);
+// (void)LedPanel_Refresh();

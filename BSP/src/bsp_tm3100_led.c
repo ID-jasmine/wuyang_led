@@ -106,9 +106,12 @@ static void Tm3100_OutputEnableRaw(boolean_t enable)
 static void Tm3100_SendBit(boolean_t bit)
 {
 	g_stcTm3100Led.ops->set_sdi(bit);
-	g_stcTm3100Led.ops->set_clk(FALSE);
 	g_stcTm3100Led.ops->delay();
+
 	g_stcTm3100Led.ops->set_clk(TRUE);
+	g_stcTm3100Led.ops->delay();
+
+	g_stcTm3100Led.ops->set_clk(FALSE);
 	g_stcTm3100Led.ops->delay();
 }
 

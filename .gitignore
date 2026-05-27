@@ -5,10 +5,12 @@
 !/source/main.c
 
 !/BSP/
-!/BSP/inc/
 !/BSP/inc/*
-!/BSP/src/
 !/BSP/src/*
+
+!/DEV/
+!/DEV/inc/*
+!/DEV/src/*
 
 !/MDK/
 /MDK/*
@@ -17,5 +19,7 @@
 
 !.gitignore
 !.clang-format
+
+!/.vscode/
 /.vscode/*
 !/.vscode/c_cpp_properties.json

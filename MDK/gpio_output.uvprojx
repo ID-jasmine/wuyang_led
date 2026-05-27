@@ -339,7 +339,7 @@
               <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath>..\source;..\common;..\driver\inc;..\BSP\inc</IncludePath>
+              <IncludePath>..\source;..\common;..\driver\inc;..\BSP\inc;..\DEV\inc</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -613,15 +613,30 @@
               <FileType>5</FileType>
               <FilePath>..\BSP\inc\bsp_tm3100_led.h</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>DEV</GroupName>
+          <Files>
             <File>
               <FileName>led_panel.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\src\led_panel.c</FilePath>
+              <FilePath>..\DEV\src\led_panel.c</FilePath>
             </File>
             <File>
               <FileName>led_panel.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\BSP\inc\led_panel.h</FilePath>
+              <FilePath>..\DEV\inc\led_panel.h</FilePath>
+            </File>
+            <File>
+              <FileName>led_panel_map.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\DEV\src\led_panel_map.c</FilePath>
+            </File>
+            <File>
+              <FileName>led_panel_map.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\DEV\inc\led_panel_map.h</FilePath>
             </File>
           </Files>
         </Group>
