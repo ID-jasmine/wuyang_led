@@ -49,6 +49,11 @@ void BSP_WDT_Init(void)
 	Wdt_Feed();
 }
 
+void BSP_WDT_Feed(void)
+{
+	Wdt_Feed();
+}
+
 void delay100us_safe(uint32_t u32Cnt)
 {
 	uint32_t ticks_per_100us = 1600;

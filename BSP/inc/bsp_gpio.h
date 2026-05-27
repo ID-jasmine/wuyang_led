@@ -19,6 +19,14 @@ extern "C"
 		BspGpioIdPhotoDetec,
 		BspGpioIdSwK1,
 		BspGpioIdSwK2,
+		BspGpioIdGearN,
+		BspGpioIdGear1,
+		BspGpioIdGear2,
+		BspGpioIdGear3,
+		BspGpioIdGear4,
+		BspGpioIdGear5,
+		BspGpioIdGear6,
+		BspGpioIdEnginefault,
 		BspGpioIdCount,
 	} en_bsp_gpio_id_t;
 

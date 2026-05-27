@@ -4,7 +4,6 @@
 #include "drv_rtc.h"
 #include "led_panel.h"
 #include "lpm.h"
-#include "wdt.h"
 
 #define SLEEP_TIME 1500
 
@@ -54,22 +53,12 @@ int32_t main(void)
 				{
 					last_check_time = BSP_SYS_GetTickMs();
 
-					// UI_SelfCheck(); 自检函数 定义 并更改check_self_Start状态
+					// 自检函数 定义 并更改check_self_Start状态
 				}
 			}
 			else
-			{ // 自检结束后，进入正常显示逻辑
-				static volatile uint32_t last_10ms_time = 0;
-				if (BSP_SYS_GetTickMs() - last_10ms_time >= 10)
-				{
-					last_10ms_time = BSP_SYS_GetTickMs();
-					// 按键检测
-				}
-				static volatile uint32_t last_100ms_time = 0;
-				if (BSP_SYS_GetTickMs() - last_100ms_time >= 100)
-				{
-					last_100ms_time = BSP_SYS_GetTickMs();
-				}
+			{
+				// 自检结束后，进入正常显示逻辑
 			}
 		}
 		else
@@ -77,7 +66,7 @@ int32_t main(void)
 			if (DeepSleep_cnt >= SLEEP_TIME)
 			{
 				// 关闭ADC，IO口设置为模拟输入
-				Wdt_Feed(); //=-=oopc
+				BSP_WDT_Feed();
 				// 在即将休眠的最后一刻，确认一下电门是关闭
 				// 避免在清理中断挂起期间用户刚好开电门，导致睡死且无法被上升沿唤醒。
 				if (FALSE == DRV_Input_ReadRaw(DrvInputIdIgn))
@@ -93,8 +82,7 @@ int32_t main(void)
 				Sysctrl_ClkSourceEnable(SysctrlClkRCH, TRUE); //=-=oopc
 				Sysctrl_SysClkSwitch(SysctrlClkRCH);		  //=-=oopc
 
-				Wdt_Feed(); //=-=oopc
-
+				BSP_WDT_Feed();
 				// 6. 恢复所有外设和 GPIO 状态
 				// 恢复引脚数字功能，唤醒并稳定 BGR 和 ADC
 			}
@@ -119,7 +107,7 @@ int32_t main(void)
 		if (BSP_SYS_GetTickMs() - last_wdt_cnt >= 1000)
 		{
 			last_wdt_cnt = BSP_SYS_GetTickMs();
-			Wdt_Feed(); //=-=oopc
+			BSP_WDT_Feed();
 		}
 	}
 }
@@ -168,9 +156,3 @@ void Rtc_IRQHandler(void)
 		Rtc_ClearAlmfItStatus();
 	}
 }
-
-// (void)LedPanel_Init();
-
-// (void)LedPanel_Clear();
-// (void)LedPanel_Set(LedPanelIdAbs, TRUE);
-// (void)LedPanel_Refresh();

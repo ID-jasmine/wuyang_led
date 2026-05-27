@@ -15,6 +15,14 @@ extern "C"
 		DrvInputIdHighBeam,
 		DrvInputIdRightTurn,
 		DrvInputIdPositionLamp,
+		DrvInputIdGearN,
+		DrvInputIdGear1,
+		DrvInputIdGear2,
+		DrvInputIdGear3,
+		DrvInputIdGear4,
+		DrvInputIdGear5,
+		DrvInputIdGear6,
+		DrvInputIdEnginefault,
 		DrvInputIdCount,
 	} en_drv_input_id_t;
 
