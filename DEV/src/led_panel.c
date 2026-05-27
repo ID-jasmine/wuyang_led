@@ -19,7 +19,8 @@ static en_result_t LedPanel_SetImpl(en_led_panel_id_t led_id, boolean_t level)
 
 	for (i = 0u; i < pstcMap->count; i++)
 	{
-		enRet = Bsp_Tm3100Led_SetChipChannel(pstcMap->points[i].chip, pstcMap->points[i].channel, level);
+		enRet = Bsp_Tm3100Led_SetChipChannel(pstcMap->points[i].chip,
+											 pstcMap->points[i].channel, level);
 		if (Ok != enRet)
 		{
 			return enRet;
@@ -30,15 +31,19 @@ static en_result_t LedPanel_SetImpl(en_led_panel_id_t led_id, boolean_t level)
 }
 
 static const stc_led_panel_ops_t s_stcLedPanelOps = {
-	Bsp_Tm3100Led_Init,			LedPanel_SetImpl,	Bsp_Tm3100Led_SetChipChannel,
-	Bsp_Tm3100Led_Clear,		Bsp_Tm3100Led_Fill, Bsp_Tm3100Led_Refresh,
-	Bsp_Tm3100Led_OutputEnable,
+	.init = Bsp_Tm3100Led_Init,
+	.set = LedPanel_SetImpl,
+	.set_chip_channel = Bsp_Tm3100Led_SetChipChannel,
+	.clear = Bsp_Tm3100Led_Clear,
+	.fill = Bsp_Tm3100Led_Fill,
+	.refresh = Bsp_Tm3100Led_Refresh,
+	.output_enable = Bsp_Tm3100Led_OutputEnable,
 };
 
 stc_led_panel_t g_stcLedPanel = {
-	&s_stcLedPanelOps,
-	g_astLedPanelMap,
-	(uint16_t)LedPanelIdCount,
+	.ops = &s_stcLedPanelOps,
+	.map = g_astLedPanelMap,
+	.count = (uint16_t)LedPanelIdCount,
 };
 
 en_result_t LedPanel_Init(void)

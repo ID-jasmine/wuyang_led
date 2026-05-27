@@ -56,17 +56,21 @@ static void Tm3100_Delay(void)
 }
 
 static const stc_bsp_tm3100_ops_t s_stcTm3100GpioOps = {
-	Tm3100_SetSdi, Tm3100_SetClk, Tm3100_SetLe, Tm3100_SetOe, Tm3100_Delay,
+	.set_sdi = Tm3100_SetSdi,
+	.set_clk = Tm3100_SetClk,
+	.set_le = Tm3100_SetLe,
+	.set_oe = Tm3100_SetOe,
+	.delay = Tm3100_Delay,
 };
 
 stc_bsp_tm3100_t g_stcTm3100Led = {
-	&s_stcTm3100GpioOps,
-	s_au16Tm3100Buffer,
-	BSP_TM3100_CHIP_COUNT,
-	BspTm3100BitMsbFirst,
-	BspTm3100ChipLastFirst,
-	FALSE,
-	NULL,
+	.ops = &s_stcTm3100GpioOps,
+	.buffer = s_au16Tm3100Buffer,
+	.chip_count = BSP_TM3100_CHIP_COUNT,
+	.bit_order = BspTm3100BitMsbFirst,
+	.chip_order = BspTm3100ChipLastFirst,
+	.oe_active_level = FALSE,
+	.reserved = NULL,
 };
 
 static en_result_t Tm3100_InitOutputPin(en_gpio_port_t port, en_gpio_pin_t pin)
