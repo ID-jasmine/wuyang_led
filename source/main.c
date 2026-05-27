@@ -31,17 +31,19 @@ int32_t main(void)
 		{
 			if (IGN_ON_OFF == 1)
 			{
+				// 电门打开：上电
 				(void)Bsp_Gpio_Write(BspGpioIdPower, TRUE);
+				check_self_Start = 0;
 			}
 			else
 			{
-				if (last_ign_state == 1) // 电门关掉：断电、清除状态
+				// 电门关掉：断电、清除状态
+				if (last_ign_state == 1)
 				{
 				}
 
 				(void)Bsp_Gpio_Write(BspGpioIdPower, FALSE);
 			}
-			check_self_Start = 0;
 			last_ign_state = IGN_ON_OFF;
 		}
 
@@ -77,15 +79,14 @@ int32_t main(void)
 				// ==========================================
 				// 此时系统沉睡，直到 RTC 周期中断 或 外部电门引脚中断 唤醒
 				// ==========================================
-				// 醒来第一件事：立刻恢复系统高速时钟
-				// (因为休眠会自动切回低速主频)
+				// 醒来第一件事：立刻恢复系统高速时钟(休眠会自动切回低速主频)
 				Sysctrl_SetRCHTrim(SysctrlRchFreq16MHz);	  //=-=oopc
 				Sysctrl_ClkSourceEnable(SysctrlClkRCH, TRUE); //=-=oopc
 				Sysctrl_SysClkSwitch(SysctrlClkRCH);		  //=-=oopc
-
-				BSP_WDT_Feed();
-				// 6. 恢复所有外设和 GPIO 状态
+				// 恢复所有外设和 GPIO 状态
 				// 恢复引脚数字功能，唤醒并稳定 BGR 和 ADC
+
+				BSP_WDT_Feed(); // 醒来立刻喂狗
 			}
 		}
 

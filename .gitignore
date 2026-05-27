@@ -20,6 +20,6 @@
 !.gitignore
 !.clang-format
 
-!/.vscode/
-/.vscode/*
-!/.vscode/c_cpp_properties.json
+# !/.vscode/
+# /.vscode/*
+# !/.vscode/c_cpp_properties.json
