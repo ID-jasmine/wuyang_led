@@ -35,6 +35,7 @@ int32_t main(void)
 			{
 				// 电门打开：上电
 				(void)Bsp_Gpio_Write(BspGpioIdPower, TRUE);
+				(void)Bsp_Gpio_Write(BspGpioIdLEDPower, TRUE);
 				check_self_Start = 0;
 			}
 			else
@@ -63,6 +64,14 @@ int32_t main(void)
 			}
 			else
 			{
+				static volatile uint32_t last_check_time = 0;
+				if (BSP_SYS_GetTickMs() - last_check_time >= 10) // 10ms
+				{
+					last_check_time = BSP_SYS_GetTickMs();
+
+					DRV_ADC_Task10ms(); // 10ms一次，更新ADC数据
+				}
+
 				// 自检结束后，进入正常显示逻辑
 			}
 		}
@@ -124,6 +133,7 @@ void sys_init(void)
 	(void)DRV_RTC_Init(12, 0); // 明确忽略返回值
 	(void)DEV_SpeedRpm_Init();
 	(void)LedPanel_Init();
+	(void)DRV_ADC_Init();
 	BSP_WDT_Init();
 }
 

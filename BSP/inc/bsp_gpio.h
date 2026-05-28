@@ -27,6 +27,7 @@ extern "C"
 		BspGpioIdGear5,
 		BspGpioIdGear6,
 		BspGpioIdEnginefault,
+		BspGpioIdLEDPower,
 		BspGpioIdCount,
 	} en_bsp_gpio_id_t;
 

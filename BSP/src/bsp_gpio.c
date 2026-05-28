@@ -115,6 +115,12 @@ static const stc_bsp_gpio_pin_cfg_t s_astBspGpioPinCfg[BspGpioIdCount] = {
 							  .pu = GpioPuDisable,
 							  .pd = GpioPdDisable,
 							  .init_level = FALSE},
+	[BspGpioIdLEDPower] = {.port = GpioPortB,
+						   .pin = GpioPin9,
+						   .dir = BspGpioDirOut,
+						   .pu = GpioPuDisable,
+						   .pd = GpioPdDisable,
+						   .init_level = FALSE},
 };
 
 static en_result_t BspGpio_CheckId(en_bsp_gpio_id_t id)
