@@ -45,7 +45,7 @@ void DRV_ADC_Init(void)
 }
 
 /**
- * @brief  执行ADC数据更新任务（连续多次采样并计算平均值，实现软件滤波）
+ * @brief  执行ADC数据更新任务（周期性10ms任务，多次采样累加并在达到指定次数后计算平均值）
  */
 void DRV_ADC_Task10ms(void)
 {
@@ -67,8 +67,7 @@ void DRV_ADC_Task10ms(void)
 	{
 		for (id = 0u; id < BspAdcIdCount; id++)
 		{
-			s_au16DrvAdcAvg[id] =
-				(uint16_t)(s_au32DrvAdcSum[id] / DRV_ADC_SAMPLE_COUNT);
+			s_au16DrvAdcAvg[id] = (uint16_t)(s_au32DrvAdcSum[id] / DRV_ADC_SAMPLE_COUNT);
 			s_au32DrvAdcSum[id] = 0u;
 		}
 		s_u8DrvAdcSampleCount = 0u;
@@ -76,6 +75,10 @@ void DRV_ADC_Task10ms(void)
 	}
 }
 
+/**
+ * @brief  获取ADC均值数据是否已经准备好（即是否已完成至少一轮完整的滤波计算）
+ * @return boolean_t TRUE: 已准备好, FALSE: 未准备好
+ */
 boolean_t DRV_ADC_IsReady(void)
 {
 	return s_bDrvAdcReady;
