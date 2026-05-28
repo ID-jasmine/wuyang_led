@@ -588,6 +588,16 @@
               <FileType>1</FileType>
               <FilePath>..\BSP\src\bsp_sys.c</FilePath>
             </File>
+            <File>
+              <FileName>bsp_adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\src\bsp_adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_time_capture.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\src\bsp_time_capture.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -612,6 +622,16 @@
               <FileName>drv_rtc.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\DEV\src\drv_rtc.c</FilePath>
+            </File>
+            <File>
+              <FileName>dev_speed_rpm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\DEV\src\dev_speed_rpm.c</FilePath>
+            </File>
+            <File>
+              <FileName>drv_adc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\DEV\src\drv_adc.c</FilePath>
             </File>
           </Files>
         </Group>
