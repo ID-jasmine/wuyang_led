@@ -162,21 +162,38 @@ stc_drv_input_t g_stcDrvInput = {
 	.reserved = NULL,
 };
 
+/**
+ * @brief  输入模块初始化
+ * @return en_result_t Ok: 初始化成功
+ */
 en_result_t DRV_Input_Init(void)
 {
 	return g_stcDrvInput.ops->init();
 }
 
+/**
+ * @brief  输入模块1ms轮询任务，处理按键/输入消抖逻辑
+ */
 void DRV_Input_Task1ms(void)
 {
 	g_stcDrvInput.ops->task_1ms();
 }
 
+/**
+ * @brief  获取指定输入通道是否处于有效（激活）状态
+ * @param  id 输入通道ID
+ * @return boolean_t TRUE: 有效(Active)，FALSE: 无效(Inactive)
+ */
 boolean_t DRV_Input_IsActive(en_drv_input_id_t id)
 {
 	return g_stcDrvInput.ops->is_active(id);
 }
 
+/**
+ * @brief  获取指定输入通道的原始电平状态（不经过消抖）
+ * @param  id 输入通道ID
+ * @return boolean_t 原始电平(TRUE为高，FALSE为低)
+ */
 boolean_t DRV_Input_ReadRaw(en_drv_input_id_t id)
 {
 	return g_stcDrvInput.ops->read_raw(id);

@@ -1,6 +1,8 @@
 #include "bsp_gpio.h"
 #include "bsp_sys.h"
+#include "bsp_time_capture.h"
 #include "ddl.h"
+#include "dev_speed_rpm.h"
 #include "drv_input.h"
 #include "drv_rtc.h"
 #include "led_panel.h"
@@ -120,7 +122,8 @@ void sys_init(void)
 	(void)Bsp_Gpio_Init();
 	(void)DRV_Input_Init();
 	(void)DRV_RTC_Init(12, 0); // 明确忽略返回值
-	LedPanel_Init();
+	(void)DEV_SpeedRpm_Init();
+	(void)LedPanel_Init();
 	BSP_WDT_Init();
 }
 
@@ -128,6 +131,7 @@ void SysTick_IRQHandler(void)
 {
 	// 1ms,一次
 	BSP_SYS_TickInc();
+	DEV_SpeedRpm_Task1ms();
 	DRV_Input_Task1ms();
 
 	// 电门开关检测
@@ -157,4 +161,9 @@ void Rtc_IRQHandler(void)
 	{
 		Rtc_ClearAlmfItStatus();
 	}
+}
+
+void Tim3_IRQHandler(void)
+{
+	BSP_TimeCapture_IRQHandler();
 }
