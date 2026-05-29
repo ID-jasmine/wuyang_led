@@ -339,7 +339,7 @@
               <MiscControls></MiscControls>
               <Define></Define>
               <Undefine></Undefine>
-              <IncludePath>..\source;..\common;..\driver\inc;..\BSP\inc;..\DEV\inc</IncludePath>
+              <IncludePath>..\source;..\common;..\driver\inc;..\BSP\inc;..\DEV\inc;..\APP\inc</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -603,6 +603,11 @@
               <FileType>1</FileType>
               <FilePath>..\BSP\src\bsp_iic.c</FilePath>
             </File>
+            <File>
+              <FileName>bsp_lpm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\src\bsp_lpm.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -652,6 +657,16 @@
               <FileName>main.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\source\main.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>APP</GroupName>
+          <Files>
+            <File>
+              <FileName>app_vehicle.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\APP\src\app_vehicle.c</FilePath>
             </File>
           </Files>
         </Group>

@@ -2,6 +2,9 @@
 #include "bsp_iic.h"
 #include "bsp_sys.h"
 
+static int EEPROM_WritePage(EepromDevice *dev, uint8_t wordAddress, const uint8_t *buffer,
+							uint8_t length);
+
 static int EEPROM_EnsureReady(EepromDevice *dev)
 {
 	if (dev == 0 || dev->ops == 0 || dev->ops->init_bus == 0 || dev->ops->get_handle == 0)
@@ -167,16 +170,34 @@ static EepromDevice s_eeprom = {
 	.page_size = EEPROM_PAGE_SIZE,
 };
 
+/**
+ * @brief 初始化 EEPROM 驱动。
+ * @return int `0` 表示成功，负值表示失败。
+ */
 int DRV_EEPROM_Init(void)
 {
 	return EEPROM_EnsureReady(&s_eeprom);
 }
 
+/**
+ * @brief 从 EEPROM 指定地址读取一段数据。
+ * @param wordAddress EEPROM 起始字地址。
+ * @param buffer 读出数据的缓冲区。
+ * @param length 读取长度，单位为字节。
+ * @return int `0` 表示成功，负值表示失败。
+ */
 int DRV_EEPROM_ReadBuffer(uint8_t wordAddress, uint8_t *buffer, uint16_t length)
 {
 	return EEPROM_ReadBuffer(&s_eeprom, wordAddress, buffer, length);
 }
 
+/**
+ * @brief 向 EEPROM 指定地址写入一段数据。
+ * @param wordAddress EEPROM 起始字地址。
+ * @param buffer 待写入数据缓冲区。
+ * @param length 写入长度，单位为字节。
+ * @return int `0` 表示成功，负值表示失败。
+ */
 int DRV_EEPROM_WriteBuffer(uint8_t wordAddress, const uint8_t *buffer, uint16_t length)
 {
 	return EEPROM_WriteBuffer(&s_eeprom, wordAddress, buffer, length);

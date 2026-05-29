@@ -1,6 +1,7 @@
 #ifndef __DRV_EEPROM_H
 #define __DRV_EEPROM_H
 
+#include "bsp_iic.h"
 #include <stdint.h>
 
 #ifdef __cplusplus

@@ -163,8 +163,8 @@ stc_drv_input_t g_stcDrvInput = {
 };
 
 /**
- * @brief  输入模块初始化
- * @return en_result_t Ok: 初始化成功
+ * @brief 初始化输入驱动模块。
+ * @return en_result_t 初始化结果，`Ok` 表示成功。
  */
 en_result_t DRV_Input_Init(void)
 {
@@ -172,7 +172,9 @@ en_result_t DRV_Input_Init(void)
 }
 
 /**
- * @brief  输入模块1ms轮询任务，处理按键/输入消抖逻辑
+ * @brief 执行输入驱动 1ms 周期任务。
+ *
+ * 负责采样输入状态并处理去抖逻辑。
  */
 void DRV_Input_Task1ms(void)
 {
@@ -180,9 +182,9 @@ void DRV_Input_Task1ms(void)
 }
 
 /**
- * @brief  获取指定输入通道是否处于有效（激活）状态
- * @param  id 输入通道ID
- * @return boolean_t TRUE: 有效(Active)，FALSE: 无效(Inactive)
+ * @brief 获取指定输入通道的当前有效状态。
+ * @param id 输入通道 ID。
+ * @return boolean_t `TRUE` 表示通道处于有效状态，`FALSE` 表示无效。
  */
 boolean_t DRV_Input_IsActive(en_drv_input_id_t id)
 {
@@ -190,9 +192,9 @@ boolean_t DRV_Input_IsActive(en_drv_input_id_t id)
 }
 
 /**
- * @brief  获取指定输入通道的原始电平状态（不经过消抖）
- * @param  id 输入通道ID
- * @return boolean_t 原始电平(TRUE为高，FALSE为低)
+ * @brief 读取指定输入通道的原始电平。
+ * @param id 输入通道 ID。
+ * @return boolean_t 原始 GPIO 电平，`TRUE` 表示高电平，`FALSE` 表示低电平。
  */
 boolean_t DRV_Input_ReadRaw(en_drv_input_id_t id)
 {

@@ -9,7 +9,6 @@ extern "C"
 {
 #endif
 
-	// 半成品
 	typedef enum en_led_panel_id
 	{
 		LedPanelIdAbs = 0u,

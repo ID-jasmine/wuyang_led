@@ -1,7 +1,6 @@
 #include "drv_rtc.h"
 #include "bsp_rtc.h"
 
-// 真正的“苦力”，直接操作硬件寄存器
 static int RTC_HW_Init(RTC_Device *dev, uint8_t hour, uint8_t minute);
 static en_result_t RTC_HW_ReadDateTime(RTC_Device *dev, stc_rtc_time_t *time);
 static en_result_t RTC_HW_SetTime(RTC_Device *dev, const stc_rtc_time_t *time);
@@ -12,7 +11,6 @@ static const RTC_Ops s_rtc_ops = {
 	.set_time = RTC_HW_SetTime,
 };
 
-// 对象，类的实例化
 RTC_Device g_rtc_dev = {
 	.ops = &s_rtc_ops,
 	.context = 0,
@@ -37,7 +35,12 @@ static en_result_t RTC_HW_SetTime(RTC_Device *dev, const stc_rtc_time_t *time)
 	return BSP_RTC_SetTime(time);
 }
 
-// api
+/**
+ * @brief 初始化 RTC 驱动。
+ * @param hour 初始小时值。
+ * @param minute 初始分钟值。
+ * @return int `0` 表示成功，负值表示失败。
+ */
 int DRV_RTC_Init(uint8_t hour, uint8_t minute)
 {
 	if (g_rtc_dev.ops == 0 || g_rtc_dev.ops->init == 0)
@@ -47,6 +50,11 @@ int DRV_RTC_Init(uint8_t hour, uint8_t minute)
 	return g_rtc_dev.ops->init(&g_rtc_dev, hour, minute);
 }
 
+/**
+ * @brief 读取当前 RTC 日期和时间。
+ * @param time 输出参数，保存读取到的时间结构体。
+ * @return en_result_t 读取结果。
+ */
 en_result_t DRV_RTC_ReadDateTime(stc_rtc_time_t *time)
 {
 	if (g_rtc_dev.ops == 0 || g_rtc_dev.ops->read_datetime == 0)
@@ -56,6 +64,11 @@ en_result_t DRV_RTC_ReadDateTime(stc_rtc_time_t *time)
 	return g_rtc_dev.ops->read_datetime(&g_rtc_dev, time);
 }
 
+/**
+ * @brief 设置 RTC 当前时间。
+ * @param time 输入参数，指向待设置的时间结构体。
+ * @return en_result_t 设置结果。
+ */
 en_result_t DRV_RTC_SetTime(const stc_rtc_time_t *time)
 {
 	if (g_rtc_dev.ops == 0 || g_rtc_dev.ops->set_time == 0)

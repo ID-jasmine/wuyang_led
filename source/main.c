@@ -1,12 +1,14 @@
 #include "bsp_gpio.h"
+#include "bsp_lpm.h"
 #include "bsp_sys.h"
 #include "bsp_time_capture.h"
 #include "ddl.h"
+#include "app_vehicle.h"
 #include "dev_speed_rpm.h"
+#include "drv_adc.h"
 #include "drv_input.h"
 #include "drv_rtc.h"
 #include "led_panel.h"
-#include "lpm.h"
 
 #define SLEEP_TIME 1500
 
@@ -36,6 +38,7 @@ int32_t main(void)
 				// 电门打开：上电
 				(void)Bsp_Gpio_Write(BspGpioIdPower, TRUE);
 				(void)Bsp_Gpio_Write(BspGpioIdLEDPower, TRUE);
+				App_Vehicle_ResetSelfCheck();
 				check_self_Start = 0;
 			}
 			else
@@ -46,6 +49,7 @@ int32_t main(void)
 				}
 
 				(void)Bsp_Gpio_Write(BspGpioIdPower, FALSE);
+				(void)Bsp_Gpio_Write(BspGpioIdLEDPower, FALSE);
 			}
 			last_ign_state = IGN_ON_OFF;
 		}
@@ -54,6 +58,7 @@ int32_t main(void)
 		{
 			if (check_self_Start == 0)
 			{
+				check_self_Start = App_Vehicle_SelfCheckTask10ms();
 				static volatile uint32_t last_check_time = 0;
 				if (BSP_SYS_GetTickMs() - last_check_time >= 10) // 10ms
 				{
@@ -86,15 +91,13 @@ int32_t main(void)
 				// 避免在清理中断挂起期间用户刚好开电门，导致睡死且无法被边沿中断唤醒。
 				if (FALSE == DRV_Input_ReadRaw(DrvInputIdIgn))
 				{
-					Lpm_GotoDeepSleep(FALSE); //=-=oopc
+					BSP_LPM_EnterDeepSleep();
 				}
 				// ==========================================
 				// 此时系统沉睡，直到 RTC 周期中断 或 外部电门引脚中断 唤醒
 				// ==========================================
 				// 醒来第一件事：立刻恢复系统高速时钟(休眠会自动切回低速主频)
-				Sysctrl_SetRCHTrim(SysctrlRchFreq16MHz);	  //=-=oopc
-				Sysctrl_ClkSourceEnable(SysctrlClkRCH, TRUE); //=-=oopc
-				Sysctrl_SysClkSwitch(SysctrlClkRCH);		  //=-=oopc
+				BSP_LPM_RestoreClockAfterWakeup();
 				// 恢复所有外设和 GPIO 状态
 				// 恢复引脚数字功能，唤醒并稳定 BGR 和 ADC
 

@@ -27,7 +27,9 @@ static void DrvAdc_StartAndWait(void)
 }
 
 /**
- * @brief  ADC设备抽象层初始化（清空缓存均值，初始化底层BSP）
+ * @brief 初始化 ADC 驱动。
+ *
+ * 清空采样缓存和平均值状态，并初始化底层 BSP ADC。
  */
 void DRV_ADC_Init(void)
 {
@@ -45,7 +47,9 @@ void DRV_ADC_Init(void)
 }
 
 /**
- * @brief  执行ADC数据更新任务（周期性10ms任务，多次采样累加并在达到指定次数后计算平均值）
+ * @brief 执行 ADC 10ms 周期任务。
+ *
+ * 进行一次采样累加，并在达到设定样本数后更新平均值。
  */
 void DRV_ADC_Task10ms(void)
 {
@@ -76,8 +80,8 @@ void DRV_ADC_Task10ms(void)
 }
 
 /**
- * @brief  获取ADC均值数据是否已经准备好（即是否已完成至少一轮完整的滤波计算）
- * @return boolean_t TRUE: 已准备好, FALSE: 未准备好
+ * @brief 查询 ADC 平均值是否已经准备完成。
+ * @return boolean_t `TRUE` 表示至少完成过一轮平均值计算，`FALSE` 表示未准备好。
  */
 boolean_t DRV_ADC_IsReady(void)
 {
@@ -85,9 +89,9 @@ boolean_t DRV_ADC_IsReady(void)
 }
 
 /**
- * @brief  获取指定ADC通道经过平均滤波后的采样值
- * @param  id ADC通道逻辑ID (例如: 燃油、电源电压、水温)
- * @return uint16_t 平均滤波后的ADC数值
+ * @brief 获取指定 ADC 通道的平均值。
+ * @param id ADC 通道 ID。
+ * @return uint16_t 平均滤波后的采样值；参数非法时返回 `0`。
  */
 uint16_t DRV_ADC_GetAvg(en_bsp_adc_id_t id)
 {
@@ -100,7 +104,9 @@ uint16_t DRV_ADC_GetAvg(en_bsp_adc_id_t id)
 }
 
 /**
- * @brief  ADC设备抽象层反初始化（停止并关闭底层ADC以节省功耗）
+ * @brief 反初始化 ADC 驱动。
+ *
+ * 停止并关闭底层 ADC 外设。
  */
 void DRV_ADC_DeInit(void)
 {
@@ -108,7 +114,9 @@ void DRV_ADC_DeInit(void)
 }
 
 /**
- * @brief  ADC设备抽象层唤醒（从低功耗状态中恢复底层ADC）
+ * @brief 唤醒 ADC 驱动。
+ *
+ * 用于从低功耗状态恢复底层 ADC 外设。
  */
 void DRV_ADC_Wakeup(void)
 {

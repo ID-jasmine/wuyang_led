@@ -47,8 +47,8 @@ stc_led_panel_t g_stcLedPanel = {
 };
 
 /**
- * @brief  LED面板模块初始化
- * @return en_result_t Ok: 初始化成功
+ * @brief 初始化 LED 面板驱动。
+ * @return en_result_t 初始化结果。
  */
 en_result_t LedPanel_Init(void)
 {
@@ -56,10 +56,10 @@ en_result_t LedPanel_Init(void)
 }
 
 /**
- * @brief  控制指定逻辑LED的点亮/熄灭（按逻辑ID映射底层驱动点）
- * @param  led_id 逻辑LED面板ID
- * @param  level  控制电平 (TRUE为亮，FALSE为灭)
- * @return en_result_t Ok: 操作成功
+ * @brief 按逻辑 LED ID 设置面板灯状态。
+ * @param led_id 逻辑 LED ID。
+ * @param level 输出电平，`TRUE` 表示点亮，`FALSE` 表示熄灭。
+ * @return en_result_t 操作结果。
  */
 en_result_t LedPanel_Set(en_led_panel_id_t led_id, boolean_t level)
 {
@@ -67,11 +67,11 @@ en_result_t LedPanel_Set(en_led_panel_id_t led_id, boolean_t level)
 }
 
 /**
- * @brief  直接控制指定驱动芯片的指定通道状态
- * @param  chip    芯片序号
- * @param  channel 通道序号
- * @param  level   控制电平 (TRUE为亮，FALSE为灭)
- * @return en_result_t Ok: 操作成功
+ * @brief 直接设置指定驱动芯片通道的输出状态。
+ * @param chip 芯片序号。
+ * @param channel 通道序号。
+ * @param level 输出电平，`TRUE` 表示点亮，`FALSE` 表示熄灭。
+ * @return en_result_t 操作结果。
  */
 en_result_t LedPanel_SetChipChannel(uint8_t chip, uint8_t channel, boolean_t level)
 {
@@ -79,8 +79,8 @@ en_result_t LedPanel_SetChipChannel(uint8_t chip, uint8_t channel, boolean_t lev
 }
 
 /**
- * @brief  清空所有LED缓存数据（准备全灭）
- * @return en_result_t Ok: 操作成功
+ * @brief 清空 LED 面板缓存状态。
+ * @return en_result_t 操作结果。
  */
 en_result_t LedPanel_Clear(void)
 {
@@ -88,8 +88,8 @@ en_result_t LedPanel_Clear(void)
 }
 
 /**
- * @brief  填充所有LED缓存数据（准备全亮）
- * @return en_result_t Ok: 操作成功
+ * @brief 将 LED 面板缓存填充为全亮状态。
+ * @return en_result_t 操作结果。
  */
 en_result_t LedPanel_Fill(void)
 {
@@ -97,8 +97,8 @@ en_result_t LedPanel_Fill(void)
 }
 
 /**
- * @brief  将缓存中的LED状态刷新并发送到底层物理芯片
- * @return en_result_t Ok: 操作成功
+ * @brief 刷新 LED 面板缓存到物理驱动芯片。
+ * @return en_result_t 操作结果。
  */
 en_result_t LedPanel_Refresh(void)
 {
@@ -106,9 +106,9 @@ en_result_t LedPanel_Refresh(void)
 }
 
 /**
- * @brief  LED驱动芯片全局输出使能/禁能控制
- * @param  enable TRUE 打开全局输出，FALSE 关闭全局输出
- * @return en_result_t Ok: 操作成功
+ * @brief 控制 LED 驱动芯片的全局输出使能。
+ * @param enable `TRUE` 表示使能输出，`FALSE` 表示禁止输出。
+ * @return en_result_t 操作结果。
  */
 en_result_t LedPanel_OutputEnable(boolean_t enable)
 {

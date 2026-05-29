@@ -20,6 +20,7 @@
 !.gitignore
 !.clang-format
 
+!架构分层检查报告.md
 # !/.vscode/
 # /.vscode/*
 # !/.vscode/c_cpp_properties.json

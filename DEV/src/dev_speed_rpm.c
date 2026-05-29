@@ -261,8 +261,8 @@ stc_dev_speed_rpm_t g_stcDevSpeedRpm = {
 };
 
 /**
- * @brief  车速/转速检测模块初始化（清空状态，注册捕获回调机制）
- * @return en_result_t Ok: 初始化成功
+ * @brief 初始化车速和转速频率检测模块。
+ * @return en_result_t 初始化结果。
  */
 en_result_t DEV_SpeedRpm_Init(void)
 {
@@ -270,7 +270,9 @@ en_result_t DEV_SpeedRpm_Init(void)
 }
 
 /**
- * @brief  1ms周期任务：获取最新快照、处理超时判定并计算最新频率（转速）
+ * @brief 执行车速和转速检测 1ms 周期任务。
+ *
+ * 负责处理快照、超时判断以及频率更新。
  */
 void DEV_SpeedRpm_Task1ms(void)
 {
@@ -278,9 +280,9 @@ void DEV_SpeedRpm_Task1ms(void)
 }
 
 /**
- * @brief  获取指定通道的频率测试结果（单位：mHz 毫赫兹，即真实的 Hz * 1000）
- * @param  id 通道ID (例如 车速、发动机转速)
- * @return uint32_t 频率值，如果超时或未启动则返回0
+ * @brief 获取指定通道的频率值。
+ * @param id 通道 ID。
+ * @return uint32_t 频率值，单位为 mHz；无效通道时返回 `0`。
  */
 uint32_t DEV_SpeedRpm_GetFreqMilliHz(en_dev_speed_rpm_id_t id)
 {
@@ -288,9 +290,9 @@ uint32_t DEV_SpeedRpm_GetFreqMilliHz(en_dev_speed_rpm_id_t id)
 }
 
 /**
- * @brief  获取当前测量的频率数据是否有效
- * @param  id 通道ID (例如 车速、发动机转速)
- * @return boolean_t TRUE: 数据有效，正在正常检测中; FALSE: 数据无效（已超时停止或未就绪）
+ * @brief 查询指定通道的频率数据是否有效。
+ * @param id 通道 ID。
+ * @return boolean_t `TRUE` 表示当前频率有效，`FALSE` 表示无效或已超时。
  */
 boolean_t DEV_SpeedRpm_IsValid(en_dev_speed_rpm_id_t id)
 {
