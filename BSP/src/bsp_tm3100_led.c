@@ -148,6 +148,12 @@ static void Tm3100_Latch(void)
 	g_stcTm3100Led.ops->set_le(FALSE);
 }
 
+/**
+ * @brief  初始化TM3100 LED驱动模块
+ * @return en_result_t 初始化结果
+ * @retval Ok: 成功
+ * @retval Error: 失败
+ */
 en_result_t Bsp_Tm3100Led_Init(void)
 {
 	en_result_t enRet;
@@ -187,6 +193,15 @@ en_result_t Bsp_Tm3100Led_Init(void)
 	return Ok;
 }
 
+/**
+ * @brief  设置指定的TM3100芯片及其通道状态
+ * @param  [in] chip 芯片索引，范围：0 ~ (BSP_TM3100_CHIP_COUNT - 1)
+ * @param  [in] channel 通道索引，范围：0 ~ (BSP_TM3100_CHANNEL_PER_CHIP - 1)
+ * @param  [in] on TRUE: 点亮 (置1) / FALSE: 熄灭 (清0)
+ * @return en_result_t 设置结果
+ * @retval Ok: 成功
+ * @retval ErrorInvalidParameter: 芯片或通道索引越界
+ */
 en_result_t Bsp_Tm3100Led_SetChipChannel(uint8_t chip, uint8_t channel, boolean_t on)
 {
 	if ((chip >= g_stcTm3100Led.chip_count) || (channel >= BSP_TM3100_CHANNEL_PER_CHIP))
@@ -206,6 +221,12 @@ en_result_t Bsp_Tm3100Led_SetChipChannel(uint8_t chip, uint8_t channel, boolean_
 	return Ok;
 }
 
+/**
+ * @brief  以线性索引方式设置LED通道状态
+ * @param  [in] index LED的线性索引位置，范围：0 ~ (BSP_TM3100_LED_COUNT - 1)
+ * @param  [in] on TRUE: 点亮 (置1) / FALSE: 熄灭 (清0)
+ * @return en_result_t 设置结果
+ */
 en_result_t Bsp_Tm3100Led_SetLinear(uint16_t index, boolean_t on)
 {
 	uint8_t chip;
@@ -222,6 +243,12 @@ en_result_t Bsp_Tm3100Led_SetLinear(uint16_t index, boolean_t on)
 	return Bsp_Tm3100Led_SetChipChannel(chip, channel, on);
 }
 
+/**
+ * @brief  直接设置整个TM3100芯片的16位数据
+ * @param  [in] chip 芯片索引，范围：0 ~ (BSP_TM3100_CHIP_COUNT - 1)
+ * @param  [in] data 要写入该芯片的16位数据
+ * @return en_result_t 设置结果
+ */
 en_result_t Bsp_Tm3100Led_SetChipData(uint8_t chip, uint16_t data)
 {
 	if (chip >= g_stcTm3100Led.chip_count)
@@ -234,6 +261,10 @@ en_result_t Bsp_Tm3100Led_SetChipData(uint8_t chip, uint16_t data)
 	return Ok;
 }
 
+/**
+ * @brief  清空(熄灭)所有TM3100芯片的通道数据(仅更新缓存，需调用Refresh生效)
+ * @return en_result_t 清空结果
+ */
 en_result_t Bsp_Tm3100Led_Clear(void)
 {
 	uint8_t chip;
@@ -246,6 +277,10 @@ en_result_t Bsp_Tm3100Led_Clear(void)
 	return Ok;
 }
 
+/**
+ * @brief  填充(点亮)所有TM3100芯片的通道数据(仅更新缓存，需调用Refresh生效)
+ * @return en_result_t 填充结果
+ */
 en_result_t Bsp_Tm3100Led_Fill(void)
 {
 	uint8_t chip;
@@ -258,6 +293,10 @@ en_result_t Bsp_Tm3100Led_Fill(void)
 	return Ok;
 }
 
+/**
+ * @brief  将缓存中的数据刷新并发送至硬件，锁存显示
+ * @return en_result_t 刷新结果
+ */
 en_result_t Bsp_Tm3100Led_Refresh(void)
 {
 	int8_t chip;
@@ -292,6 +331,11 @@ en_result_t Bsp_Tm3100Led_Refresh(void)
 	return Ok;
 }
 
+/**
+ * @brief  控制TM3100驱动输出使能/关闭
+ * @param  [in] enable TRUE: 输出使能 / FALSE: 输出关闭
+ * @return en_result_t 控制结果
+ */
 en_result_t Bsp_Tm3100Led_OutputEnable(boolean_t enable)
 {
 	en_result_t enRet;
@@ -307,6 +351,11 @@ en_result_t Bsp_Tm3100Led_OutputEnable(boolean_t enable)
 	return Ok;
 }
 
+/**
+ * @brief  获取指定TM3100芯片当前的通道数据(缓存值)
+ * @param  [in] chip 芯片索引
+ * @return uint16_t 对应的16位数据，越界则返回0
+ */
 uint16_t Bsp_Tm3100Led_GetChipData(uint8_t chip)
 {
 	if (chip >= g_stcTm3100Led.chip_count)
@@ -317,6 +366,10 @@ uint16_t Bsp_Tm3100Led_GetChipData(uint8_t chip)
 	return g_stcTm3100Led.buffer[chip];
 }
 
+/**
+ * @brief  获取TM3100所有的芯片缓存数据指针
+ * @return uint16_t* 缓存数组指针
+ */
 uint16_t *Bsp_Tm3100Led_GetBuffer(void)
 {
 	return g_stcTm3100Led.buffer;

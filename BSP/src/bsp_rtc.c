@@ -2,6 +2,12 @@
 #include "bsp_sys.h"
 #include "wdt.h"
 
+/**
+ * @brief  初始化RTC
+ * @param  [in] hour 初始小时值，十进制格式
+ * @param  [in] minute 初始分钟值，十进制格式
+ * @details 使能XTL时钟源并等待稳定后，完成RTC初始化与中断配置。
+ */
 void BSP_RTC_Init(uint8_t hour, uint8_t minute)
 {
 	stc_rtc_initstruct_t stcRtcInit;
@@ -42,11 +48,23 @@ void BSP_RTC_Init(uint8_t hour, uint8_t minute)
 	EnableNvic(RTC_IRQn, IrqLevel3, TRUE);
 }
 
+/**
+ * @brief  读取当前RTC日期时间
+ * @param  [out] time 用于接收日期时间的结构体指针
+ * @retval Ok: 读取成功
+ * @retval 其他: 底层RTC读取失败
+ */
 en_result_t BSP_RTC_ReadDateTime(stc_rtc_time_t *time)
 {
 	return Rtc_ReadDateTime(time);
 }
 
+/**
+ * @brief  设置RTC当前时间
+ * @param  [in] time 待写入的日期时间结构体指针
+ * @retval Ok: 设置成功
+ * @retval 其他: 底层RTC设置失败
+ */
 en_result_t BSP_RTC_SetTime(const stc_rtc_time_t *time)
 {
 	return Rtc_SetTime((stc_rtc_time_t *)time);

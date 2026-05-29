@@ -80,6 +80,7 @@ int32_t main(void)
 			if (DeepSleep_cnt >= SLEEP_TIME)
 			{
 				// 关闭ADC，IO口设置为模拟输入，关闭非必要中断
+				(void)Bsp_Gpio_InitSleepPins();
 				BSP_WDT_Feed();
 				// 在即将休眠的最后一刻，确认一下电门是关闭
 				// 避免在清理中断挂起期间用户刚好开电门，导致睡死且无法被边沿中断唤醒。

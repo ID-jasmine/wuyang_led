@@ -598,6 +598,11 @@
               <FileType>1</FileType>
               <FilePath>..\BSP\src\bsp_time_capture.c</FilePath>
             </File>
+            <File>
+              <FileName>bsp_iic.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\src\bsp_iic.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -632,6 +637,11 @@
               <FileName>drv_adc.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\DEV\src\drv_adc.c</FilePath>
+            </File>
+            <File>
+              <FileName>drv_eeprom.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\DEV\src\drv_eeprom.c</FilePath>
             </File>
           </Files>
         </Group>

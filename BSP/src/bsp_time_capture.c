@@ -125,6 +125,11 @@ static void Bsp_Tim3Capture_TimerInit(void)
 	(void)Tim3_M23_Run();
 }
 
+/**
+ * @brief  初始化TIM3捕获模块
+ * @details 初始化捕获输入引脚、TIM3硬件配置，并设置基础计时参数。
+ * @retval Ok: 初始化成功
+ */
 en_result_t BSP_TimeCapture_Init(void)
 {
 	g_tim3_cap.timer_clk_hz = BSP_TIM3_CAPTURE_CLOCK_HZ;
@@ -136,6 +141,12 @@ en_result_t BSP_TimeCapture_Init(void)
 	return Ok;
 }
 
+/**
+ * @brief  注册TIM3捕获回调函数
+ * @param  [in] callback 捕获事件回调函数
+ * @param  [in] user_data 用户自定义上下文指针
+ * @retval Ok: 注册成功
+ */
 en_result_t BSP_TimeCapture_RegisterCallback(bsp_tim3_cap_cb_t callback, void *user_data)
 {
 	g_tim3_cap.callback = callback;
@@ -144,11 +155,19 @@ en_result_t BSP_TimeCapture_RegisterCallback(bsp_tim3_cap_cb_t callback, void *u
 	return Ok;
 }
 
+/**
+ * @brief  获取TIM3捕获定时器时钟频率
+ * @return 当前捕获定时器时钟频率，单位Hz
+ */
 uint32_t BSP_TimeCapture_GetTimerClockHz(void)
 {
 	return g_tim3_cap.timer_clk_hz;
 }
 
+/**
+ * @brief  TIM3捕获中断处理函数
+ * @details 轮询各捕获通道中断标志，计算时间戳后通过回调上报。
+ */
 void BSP_TimeCapture_IRQHandler(void)
 {
 	uint8_t i;

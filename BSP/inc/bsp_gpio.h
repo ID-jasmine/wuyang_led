@@ -8,7 +8,7 @@ extern "C"
 {
 #endif
 
-	typedef enum en_bsp_gpio_id
+	typedef enum
 	{
 		BspGpioIdIgn = 0u,
 		BspGpioIdPower,
@@ -31,20 +31,22 @@ extern "C"
 		BspGpioIdCount,
 	} en_bsp_gpio_id_t;
 
-	typedef enum en_bsp_gpio_dir
+	typedef enum
 	{
 		BspGpioDirOut = 0u,
 		BspGpioDirIn = 1u,
 	} en_bsp_gpio_dir_t;
 
-	typedef struct stc_bsp_gpio_ops
+	typedef struct
 	{
 		en_result_t (*init)(en_bsp_gpio_id_t id);
+		en_result_t (*init_nc_pins)(void);
+		en_result_t (*init_sleep_pins)(void);
 		boolean_t (*read)(en_bsp_gpio_id_t id);
 		en_result_t (*write)(en_bsp_gpio_id_t id, boolean_t level);
 	} stc_bsp_gpio_ops_t;
 
-	typedef struct stc_bsp_gpio
+	typedef struct
 	{
 		const stc_bsp_gpio_ops_t *ops;
 		uint8_t count;
@@ -54,7 +56,7 @@ extern "C"
 	extern stc_bsp_gpio_t g_stcBspGpio;
 
 	en_result_t Bsp_Gpio_Init(void);
-	en_result_t Bsp_Gpio_InitPin(en_bsp_gpio_id_t id);
+	en_result_t Bsp_Gpio_InitSleepPins(void);
 	boolean_t Bsp_Gpio_Read(en_bsp_gpio_id_t id);
 	en_result_t Bsp_Gpio_Write(en_bsp_gpio_id_t id, boolean_t level);
 

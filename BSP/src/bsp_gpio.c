@@ -12,6 +12,12 @@ typedef struct stc_bsp_gpio_pin_cfg
 	boolean_t init_level;
 } stc_bsp_gpio_pin_cfg_t;
 
+typedef struct stc_bsp_gpio_nc_pin_cfg
+{
+	en_gpio_port_t port;
+	en_gpio_pin_t pin;
+} stc_bsp_gpio_nc_pin_cfg_t;
+
 static const stc_bsp_gpio_pin_cfg_t s_astBspGpioPinCfg[BspGpioIdCount] = {
 	[BspGpioIdIgn] = {.port = GpioPortB,
 					  .pin = GpioPin11,
@@ -123,6 +129,32 @@ static const stc_bsp_gpio_pin_cfg_t s_astBspGpioPinCfg[BspGpioIdCount] = {
 						   .init_level = FALSE},
 };
 
+static const stc_bsp_gpio_nc_pin_cfg_t s_astBspGpioNcPinCfg[] = {
+	{GpioPortB, GpioPin8},	{GpioPortB, GpioPin5},	{GpioPortB, GpioPin4},
+	{GpioPortA, GpioPin15}, {GpioPortA, GpioPin12}, {GpioPortA, GpioPin11},
+};
+
+static const en_bsp_gpio_id_t s_aBspGpioSleepPinIds[] = {
+	BspGpioIdLeftTurn,	 BspGpioIdHighBeam, BspGpioIdRightTurn,	  BspGpioIdPositionLamp,
+	BspGpioIdPhotoDetec, BspGpioIdSwK1,		BspGpioIdSwK2,		  BspGpioIdGearN,
+	BspGpioIdGear1,		 BspGpioIdGear2,	BspGpioIdGear3,		  BspGpioIdGear4,
+	BspGpioIdGear5,		 BspGpioIdGear6,	BspGpioIdEnginefault,
+};
+
+static const en_bsp_gpio_id_t s_aBspGpioSleepDefaultOutputIds[] = {
+	BspGpioIdPower,
+	BspGpioIdLEDPower,
+};
+
+enum
+{
+	BspGpioNcPinCount = sizeof(s_astBspGpioNcPinCfg) / sizeof(s_astBspGpioNcPinCfg[0]),
+	BspGpioSleepPinCount =
+		sizeof(s_aBspGpioSleepPinIds) / sizeof(s_aBspGpioSleepPinIds[0]),
+	BspGpioSleepDefaultOutputCount = sizeof(s_aBspGpioSleepDefaultOutputIds) /
+									 sizeof(s_aBspGpioSleepDefaultOutputIds[0]),
+};
+
 static en_result_t BspGpio_CheckId(en_bsp_gpio_id_t id)
 {
 	if (id >= BspGpioIdCount)
@@ -131,6 +163,48 @@ static en_result_t BspGpio_CheckId(en_bsp_gpio_id_t id)
 	}
 
 	return Ok;
+}
+
+static en_result_t BspGpio_SetAnalogModeById(en_bsp_gpio_id_t id)
+{
+	const stc_bsp_gpio_pin_cfg_t *pstcPinCfg;
+	en_result_t enRet;
+
+	enRet = BspGpio_CheckId(id);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
+
+	pstcPinCfg = &s_astBspGpioPinCfg[id];
+	Gpio_SetAnalogMode(pstcPinCfg->port, pstcPinCfg->pin);
+
+	return Ok;
+}
+
+static en_result_t BspGpio_SetDefaultOutputById(en_bsp_gpio_id_t id)
+{
+	const stc_bsp_gpio_pin_cfg_t *pstcPinCfg;
+	en_result_t enRet;
+
+	enRet = BspGpio_CheckId(id);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
+
+	pstcPinCfg = &s_astBspGpioPinCfg[id];
+	if (BspGpioDirOut != pstcPinCfg->dir)
+	{
+		return ErrorInvalidParameter;
+	}
+
+	if (pstcPinCfg->init_level)
+	{
+		return Gpio_SetIO(pstcPinCfg->port, pstcPinCfg->pin);
+	}
+
+	return Gpio_ClrIO(pstcPinCfg->port, pstcPinCfg->pin);
 }
 
 static en_result_t BspGpio_InitImpl(en_bsp_gpio_id_t id)
@@ -209,8 +283,52 @@ static en_result_t BspGpio_WriteImpl(en_bsp_gpio_id_t id, boolean_t level)
 	return Gpio_ClrIO(pstcPinCfg->port, pstcPinCfg->pin);
 }
 
+static en_result_t BspGpio_InitNcPinsImpl(void)
+{
+	uint8_t i;
+
+	Sysctrl_SetPeripheralGate(SysctrlPeripheralGpio, TRUE);
+
+	for (i = 0u; i < BspGpioNcPinCount; i++)
+	{
+		Gpio_SetAnalogMode(s_astBspGpioNcPinCfg[i].port, s_astBspGpioNcPinCfg[i].pin);
+	}
+
+	return Ok;
+}
+
+static en_result_t BspGpio_InitSleepPinsImpl(void)
+{
+	uint8_t i;
+	en_result_t enRet;
+
+	Sysctrl_SetPeripheralGate(SysctrlPeripheralGpio, TRUE);
+
+	for (i = 0u; i < BspGpioSleepDefaultOutputCount; i++)
+	{
+		enRet = BspGpio_SetDefaultOutputById(s_aBspGpioSleepDefaultOutputIds[i]);
+		if (Ok != enRet)
+		{
+			return enRet;
+		}
+	}
+
+	for (i = 0u; i < BspGpioSleepPinCount; i++)
+	{
+		enRet = BspGpio_SetAnalogModeById(s_aBspGpioSleepPinIds[i]);
+		if (Ok != enRet)
+		{
+			return enRet;
+		}
+	}
+
+	return Ok;
+}
+
 static const stc_bsp_gpio_ops_t s_stcBspGpioOps = {
 	.init = BspGpio_InitImpl,
+	.init_nc_pins = BspGpio_InitNcPinsImpl,
+	.init_sleep_pins = BspGpio_InitSleepPinsImpl,
 	.read = BspGpio_ReadImpl,
 	.write = BspGpio_WriteImpl,
 };
@@ -221,33 +339,66 @@ stc_bsp_gpio_t g_stcBspGpio = {
 	.reserved = NULL,
 };
 
+/**
+ * @brief  初始化BSP GPIO模块
+ * @details 依次初始化所有已配置GPIO，并将未使用的NC引脚设置为模拟模式。
+ * @retval Ok: 所有GPIO及NC引脚初始化成功
+ * @retval Error: 存在任一GPIO或NC引脚初始化失败
+ */
 en_result_t Bsp_Gpio_Init(void)
 {
 	uint8_t i;
 	en_result_t enRet;
+	en_result_t enFinalRet = Ok;
 
 	for (i = 0u; i < g_stcBspGpio.count; i++)
 	{
 		enRet = g_stcBspGpio.ops->init((en_bsp_gpio_id_t)i);
 		if (Ok != enRet)
 		{
-			return enRet;
+			enFinalRet = Error;
 		}
 	}
 
-	return Ok;
+	enRet = g_stcBspGpio.ops->init_nc_pins();
+	if (Ok != enRet)
+	{
+		enFinalRet = Error;
+	}
+
+	return enFinalRet;
 }
 
-en_result_t Bsp_Gpio_InitPin(en_bsp_gpio_id_t id)
+/**
+ * @brief  初始化休眠模式下的GPIO配置
+ * @details 将指定输入引脚切换为模拟模式，并恢复默认输出引脚的预设电平。
+ * @retval Ok: 休眠态引脚配置成功
+ * @retval ErrorInvalidParameter: 引脚ID无效或输出配置不匹配
+ * @retval 其他: 底层GPIO操作失败
+ */
+en_result_t Bsp_Gpio_InitSleepPins(void)
 {
-	return g_stcBspGpio.ops->init(id);
+	return g_stcBspGpio.ops->init_sleep_pins();
 }
 
+/**
+ * @brief  读取指定GPIO电平
+ * @param  [in] id GPIO功能ID，参见 en_bsp_gpio_id_t
+ * @return TRUE表示高电平，FALSE表示低电平或参数无效
+ */
 boolean_t Bsp_Gpio_Read(en_bsp_gpio_id_t id)
 {
 	return g_stcBspGpio.ops->read(id);
 }
 
+/**
+ * @brief  设置指定GPIO输出电平
+ * @param  [in] id GPIO功能ID，参见 en_bsp_gpio_id_t
+ * @param  [in] level 输出电平，TRUE为高，FALSE为低
+ * @retval Ok: 设置成功
+ * @retval ErrorInvalidParameter: 引脚ID无效或该引脚不是输出模式
+ * @retval 其他: 底层GPIO写操作失败
+ */
 en_result_t Bsp_Gpio_Write(en_bsp_gpio_id_t id, boolean_t level)
 {
 	return g_stcBspGpio.ops->write(id, level);
