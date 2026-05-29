@@ -599,6 +599,11 @@
               <FilePath>..\BSP\src\bsp_time_capture.c</FilePath>
             </File>
             <File>
+              <FileName>bsp_tim1_oe.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\src\bsp_tim1_oe.c</FilePath>
+            </File>
+            <File>
               <FileName>bsp_iic.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BSP\src\bsp_iic.c</FilePath>
@@ -651,22 +656,22 @@
           </Files>
         </Group>
         <Group>
-          <GroupName>source</GroupName>
-          <Files>
-            <File>
-              <FileName>main.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\source\main.c</FilePath>
-            </File>
-          </Files>
-        </Group>
-        <Group>
           <GroupName>APP</GroupName>
           <Files>
             <File>
               <FileName>app_vehicle.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\APP\src\app_vehicle.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>source</GroupName>
+          <Files>
+            <File>
+              <FileName>main.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\source\main.c</FilePath>
             </File>
           </Files>
         </Group>

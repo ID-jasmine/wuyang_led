@@ -29,7 +29,6 @@ extern "C"
 		void (*set_sdi)(boolean_t level);
 		void (*set_clk)(boolean_t level);
 		void (*set_le)(boolean_t level);
-		void (*set_oe)(boolean_t level);
 		void (*delay)(void);
 	} stc_bsp_tm3100_ops_t;
 
@@ -40,7 +39,6 @@ extern "C"
 		uint8_t chip_count;
 		en_bsp_tm3100_bit_order_t bit_order;
 		en_bsp_tm3100_chip_order_t chip_order;
-		boolean_t oe_active_level;
 		void *reserved;
 	} stc_bsp_tm3100_t;
 

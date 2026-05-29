@@ -1,17 +1,18 @@
 #include "bsp_tm3100_led.h"
+#include "bsp_tim1_oe.h"
 #include "gpio.h"
 
-#define TM3100_SDI_PORT GpioPortA
-#define TM3100_SDI_PIN	GpioPin8
-#define TM3100_CLK_PORT GpioPortB
-#define TM3100_CLK_PIN	GpioPin15
-#define TM3100_LE_PORT	GpioPortB
-#define TM3100_LE_PIN	GpioPin14
-#define TM3100_OE_PORT	GpioPortB
-#define TM3100_OE_PIN	GpioPin13
+#define TM3100_OE_ON_BRIGHTNESS_PERCENT (50u)
+#define TM3100_SDI_PORT					GpioPortA
+#define TM3100_SDI_PIN					GpioPin8
+#define TM3100_CLK_PORT					GpioPortB
+#define TM3100_CLK_PIN					GpioPin15
+#define TM3100_LE_PORT					GpioPortB
+#define TM3100_LE_PIN					GpioPin14
 
 static uint16_t s_au16Tm3100Buffer[BSP_TM3100_CHIP_COUNT];
 static boolean_t s_bTm3100Inited = FALSE;
+static boolean_t s_bTm3100OutputEnabled = FALSE;
 
 static void Tm3100_SetPin(en_gpio_port_t port, en_gpio_pin_t pin, boolean_t level)
 {
@@ -40,11 +41,6 @@ static void Tm3100_SetLe(boolean_t level)
 	Tm3100_SetPin(TM3100_LE_PORT, TM3100_LE_PIN, level);
 }
 
-static void Tm3100_SetOe(boolean_t level)
-{
-	Tm3100_SetPin(TM3100_OE_PORT, TM3100_OE_PIN, level);
-}
-
 static void Tm3100_Delay(void)
 {
 	volatile uint8_t i;
@@ -59,7 +55,6 @@ static const stc_bsp_tm3100_ops_t s_stcTm3100GpioOps = {
 	.set_sdi = Tm3100_SetSdi,
 	.set_clk = Tm3100_SetClk,
 	.set_le = Tm3100_SetLe,
-	.set_oe = Tm3100_SetOe,
 	.delay = Tm3100_Delay,
 };
 
@@ -69,7 +64,6 @@ stc_bsp_tm3100_t g_stcTm3100Led = {
 	.chip_count = BSP_TM3100_CHIP_COUNT,
 	.bit_order = BspTm3100BitMsbFirst,
 	.chip_order = BspTm3100ChipLastFirst,
-	.oe_active_level = FALSE,
 	.reserved = NULL,
 };
 
@@ -98,13 +92,9 @@ static en_result_t Tm3100_CheckReady(void)
 	return Ok;
 }
 
-static void Tm3100_OutputEnableRaw(boolean_t enable)
+static en_result_t Tm3100_OutputEnableRaw(boolean_t enable)
 {
-	boolean_t level;
-
-	level = (enable) ? g_stcTm3100Led.oe_active_level
-					 : (boolean_t)!g_stcTm3100Led.oe_active_level;
-	g_stcTm3100Led.ops->set_oe(level);
+	return BSP_Tim1Oe_SetBrightness(enable ? TM3100_OE_ON_BRIGHTNESS_PERCENT : 0u);
 }
 
 static void Tm3100_SendBit(boolean_t bit)
@@ -176,13 +166,14 @@ en_result_t Bsp_Tm3100Led_Init(void)
 		return enRet;
 	}
 
-	enRet = Tm3100_InitOutputPin(TM3100_OE_PORT, TM3100_OE_PIN);
+	enRet = BSP_Tim1Oe_Init(0u);
 	if (Ok != enRet)
 	{
 		return enRet;
 	}
 
 	s_bTm3100Inited = TRUE;
+	s_bTm3100OutputEnabled = FALSE;
 	(void)Bsp_Tm3100Led_OutputEnable(FALSE);
 	g_stcTm3100Led.ops->set_sdi(FALSE);
 	g_stcTm3100Led.ops->set_clk(FALSE);
@@ -308,7 +299,11 @@ en_result_t Bsp_Tm3100Led_Refresh(void)
 		return enRet;
 	}
 
-	Tm3100_OutputEnableRaw(FALSE);
+	enRet = Tm3100_OutputEnableRaw(FALSE);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
 
 	if (BspTm3100ChipLastFirst == g_stcTm3100Led.chip_order)
 	{
@@ -326,7 +321,11 @@ en_result_t Bsp_Tm3100Led_Refresh(void)
 	}
 
 	Tm3100_Latch();
-	Tm3100_OutputEnableRaw(TRUE);
+	enRet = Tm3100_OutputEnableRaw(s_bTm3100OutputEnabled);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
 
 	return Ok;
 }
@@ -346,9 +345,9 @@ en_result_t Bsp_Tm3100Led_OutputEnable(boolean_t enable)
 		return enRet;
 	}
 
-	Tm3100_OutputEnableRaw(enable);
+	s_bTm3100OutputEnabled = enable;
 
-	return Ok;
+	return Tm3100_OutputEnableRaw(enable);
 }
 
 /**

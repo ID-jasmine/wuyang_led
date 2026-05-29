@@ -1,9 +1,9 @@
+#include "app_vehicle.h"
 #include "bsp_gpio.h"
 #include "bsp_lpm.h"
 #include "bsp_sys.h"
 #include "bsp_time_capture.h"
 #include "ddl.h"
-#include "app_vehicle.h"
 #include "dev_speed_rpm.h"
 #include "drv_adc.h"
 #include "drv_input.h"
@@ -11,15 +11,14 @@
 #include "led_panel.h"
 
 #define SLEEP_TIME 1500
-
 void sys_init(void);
 
-volatile uint8_t check_self_Start = 0;
 volatile uint8_t second = 0;
 volatile uint8_t minute = 0;
 volatile uint8_t hour = 0;
 // 在ui app 中定义
 
+static volatile uint8_t check_self_Start = 0;
 static volatile uint8_t IGN_ON_OFF = 0; // 电门
 static volatile uint8_t rtc_time_1s_flag = 0;
 static volatile uint8_t last_ign_state = 0xFF; // 用于记录电门上一次的状态，以捕捉动作瞬间
@@ -38,6 +37,7 @@ int32_t main(void)
 				// 电门打开：上电
 				(void)Bsp_Gpio_Write(BspGpioIdPower, TRUE);
 				(void)Bsp_Gpio_Write(BspGpioIdLEDPower, TRUE);
+				(void)LedPanel_OutputEnable(TRUE);
 				App_Vehicle_ResetSelfCheck();
 				check_self_Start = 0;
 			}
@@ -49,6 +49,7 @@ int32_t main(void)
 				}
 
 				(void)Bsp_Gpio_Write(BspGpioIdPower, FALSE);
+				(void)LedPanel_OutputEnable(FALSE);
 				(void)Bsp_Gpio_Write(BspGpioIdLEDPower, FALSE);
 			}
 			last_ign_state = IGN_ON_OFF;
@@ -58,11 +59,12 @@ int32_t main(void)
 		{
 			if (check_self_Start == 0)
 			{
-				check_self_Start = App_Vehicle_SelfCheckTask10ms();
 				static volatile uint32_t last_check_time = 0;
 				if (BSP_SYS_GetTickMs() - last_check_time >= 10) // 10ms
 				{
 					last_check_time = BSP_SYS_GetTickMs();
+
+					check_self_Start = App_Vehicle_SelfCheckTask10ms();
 
 					// 自检函数 定义 并更改check_self_Start状态
 				}
