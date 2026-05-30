@@ -333,34 +333,34 @@ en_result_t LedPanel_ShowClock(uint8_t hour, uint8_t minute)
 {
 	en_result_t enRet;
 
-	if ((hour > 99u) || (minute > 99u))
+	if ((hour != 0xFFu && hour > 99u) || (minute != 0xFFu && minute > 99u))
 	{
 		return ErrorInvalidParameter;
 	}
 
 	enRet = LedPanel_SetSevenSegment(g_au8LedPanelClockHourTensSegments,
-									 (uint8_t)(hour / 10u));
+									 (hour == 0xFFu) ? 0xFFu : (uint8_t)(hour / 10u));
 	if (Ok != enRet)
 	{
 		return enRet;
 	}
 
 	enRet = LedPanel_SetSevenSegment(g_au8LedPanelClockHourOnesSegments,
-									 (uint8_t)(hour % 10u));
+									 (hour == 0xFFu) ? 0xFFu : (uint8_t)(hour % 10u));
 	if (Ok != enRet)
 	{
 		return enRet;
 	}
 
 	enRet = LedPanel_SetSevenSegment(g_au8LedPanelClockMinuteTensSegments,
-									 (uint8_t)(minute / 10u));
+									 (minute == 0xFFu) ? 0xFFu : (uint8_t)(minute / 10u));
 	if (Ok != enRet)
 	{
 		return enRet;
 	}
 
 	return LedPanel_SetSevenSegment(g_au8LedPanelClockMinuteOnesSegments,
-									(uint8_t)(minute % 10u));
+									(minute == 0xFFu) ? 0xFFu : (uint8_t)(minute % 10u));
 }
 
 /**

@@ -6,6 +6,7 @@
 #include "ddl.h"
 #include "dev_speed_rpm.h"
 #include "drv_adc.h"
+#include "drv_button.h"
 #include "drv_input.h"
 #include "drv_rtc.h"
 #include "led_panel.h"
@@ -89,6 +90,9 @@ int32_t main(void)
 				}
 			}
 		}
+		else
+		{
+		}
 		static volatile uint32_t last_wdt_normal_cnt = 0;
 		if (BSP_SYS_GetTickMs() - last_wdt_normal_cnt >= 1000u)
 		{
@@ -102,10 +106,11 @@ void sys_init(void)
 	BSP_SysTick_Init();
 	(void)Bsp_Gpio_Init();
 	(void)DRV_Input_Init();
+	DRV_Button_Init();
 	(void)DRV_RTC_Init(12, 0); // 明确忽略返回值
 	(void)DEV_SpeedRpm_Init();
 	(void)LedPanel_Init();
-	(void)DRV_ADC_Init();
+	DRV_ADC_Init();
 	BSP_WDT_Init();
 }
 
@@ -117,6 +122,7 @@ void SysTick_IRQHandler(void)
 	DEV_SpeedRpm_Task1ms();
 	DRV_Input_Task1ms();
 	DRV_ADC_Task1ms();
+	DRV_Button_Task1ms();
 
 	// 电门开关检测
 	if (TRUE == DRV_ADC_IsIgnActive())
