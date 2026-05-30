@@ -6,6 +6,7 @@
 #define DRV_ADC_WAIT_100US	 (1u)
 #define DRV_ADC_REF_MV		 (5000u)
 #define DRV_ADC_FULL_SCALE	 (4095u)
+#define DRV_ADC_SENSOR_SERIES_RES_OHM (200u)
 #define DRV_ADC_IGN_ON_MV	 (1430u)
 #define DRV_ADC_IGN_ON_RAW	 (((uint32_t)DRV_ADC_IGN_ON_MV * DRV_ADC_FULL_SCALE + \
 							  (DRV_ADC_REF_MV - 1u)) / \
@@ -28,6 +29,11 @@ static en_result_t DrvAdc_CheckId(en_bsp_adc_id_t id)
 	}
 
 	return Ok;
+}
+
+static boolean_t DrvAdc_IsResistanceSensorId(en_bsp_adc_id_t id)
+{
+	return ((BspAdcIdFuel == id) || (BspAdcIdWaterTemp == id)) ? TRUE : FALSE;
 }
 
 static void DrvAdc_StartAndWait(void)
@@ -153,6 +159,38 @@ uint16_t DRV_ADC_GetAvg(en_bsp_adc_id_t id)
 	}
 
 	return s_au16DrvAdcAvg[id];
+}
+
+uint16_t DRV_ADC_GetResistanceOhm(en_bsp_adc_id_t id)
+{
+	uint32_t sensor_adc;
+	uint32_t power_adc;
+	uint32_t denominator;
+	uint32_t resistance_ohm;
+
+	if ((Ok != DrvAdc_CheckId(id)) || (FALSE == DrvAdc_IsResistanceSensorId(id)) ||
+		(FALSE == s_bDrvAdcReady))
+	{
+		return DRV_ADC_RESISTANCE_INVALID_OHM;
+	}
+
+	sensor_adc = s_au16DrvAdcAvg[id];
+	power_adc = s_au16DrvAdcAvg[BspAdcIdAdPower];
+	if ((0u == power_adc) || (sensor_adc >= power_adc))
+	{
+		return DRV_ADC_RESISTANCE_INVALID_OHM;
+	}
+
+	denominator = power_adc - sensor_adc;
+	resistance_ohm =
+		(sensor_adc * DRV_ADC_SENSOR_SERIES_RES_OHM + (denominator / 2u)) /
+		denominator;
+	if (resistance_ohm >= DRV_ADC_RESISTANCE_INVALID_OHM)
+	{
+		return (uint16_t)(DRV_ADC_RESISTANCE_INVALID_OHM - 1u);
+	}
+
+	return (uint16_t)resistance_ohm;
 }
 
 /**

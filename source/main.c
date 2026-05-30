@@ -62,6 +62,12 @@ int32_t main(void)
 
 		if (IGN_ON_OFF)
 		{
+			if (0u != rtc_time_1s_flag)
+			{
+				rtc_time_1s_flag = 0u;
+				App_Vehicle_NotifyRtcTick1s();
+			}
+
 			if (check_self_Start == 0)
 			{
 				static volatile uint32_t last_check_time = 0;

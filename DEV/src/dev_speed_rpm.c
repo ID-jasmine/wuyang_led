@@ -10,6 +10,7 @@ typedef struct
 	volatile uint32_t first_tick;
 	volatile uint32_t last_tick;
 	volatile uint16_t pulse_count;
+	volatile uint32_t total_pulse_count;
 	volatile uint16_t timeout_count;
 	volatile boolean_t started;
 	uint32_t freq_mhz;
@@ -75,6 +76,7 @@ static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp
 	}
 
 	state = &s_astDevSpeedRpmState[id];
+	state->total_pulse_count++;
 	if (FALSE == state->started)
 	{
 		state->started = TRUE;
@@ -202,6 +204,7 @@ static en_result_t DevSpeedRpm_InitImpl(void)
 		s_astDevSpeedRpmState[i].first_tick = 0u;
 		s_astDevSpeedRpmState[i].last_tick = 0u;
 		s_astDevSpeedRpmState[i].pulse_count = 0u;
+		s_astDevSpeedRpmState[i].total_pulse_count = 0u;
 		s_astDevSpeedRpmState[i].timeout_count = 0u;
 		s_astDevSpeedRpmState[i].freq_mhz = 0u;
 		s_astDevSpeedRpmState[i].valid = FALSE;
@@ -237,6 +240,24 @@ static uint32_t DevSpeedRpm_GetFreqMilliHzImpl(en_dev_speed_rpm_id_t id)
 	return s_astDevSpeedRpmState[id].freq_mhz;
 }
 
+static uint32_t DevSpeedRpm_GetPulseCountImpl(en_dev_speed_rpm_id_t id)
+{
+	uint32_t primask;
+	uint32_t pulse_count;
+
+	if (Ok != DevSpeedRpm_CheckId(id))
+	{
+		return 0u;
+	}
+
+	primask = __get_PRIMASK();
+	__disable_irq();
+	pulse_count = s_astDevSpeedRpmState[id].total_pulse_count;
+	__set_PRIMASK(primask);
+
+	return pulse_count;
+}
+
 static boolean_t DevSpeedRpm_IsValidImpl(en_dev_speed_rpm_id_t id)
 {
 	if (Ok != DevSpeedRpm_CheckId(id))
@@ -251,6 +272,7 @@ static const stc_dev_speed_rpm_ops_t s_stcDevSpeedRpmOps = {
 	.init = DevSpeedRpm_InitImpl,
 	.task_1ms = DevSpeedRpm_Task1msImpl,
 	.get_freq_mhz = DevSpeedRpm_GetFreqMilliHzImpl,
+	.get_pulse_count = DevSpeedRpm_GetPulseCountImpl,
 	.is_valid = DevSpeedRpm_IsValidImpl,
 };
 
@@ -287,6 +309,11 @@ void DEV_SpeedRpm_Task1ms(void)
 uint32_t DEV_SpeedRpm_GetFreqMilliHz(en_dev_speed_rpm_id_t id)
 {
 	return g_stcDevSpeedRpm.ops->get_freq_mhz(id);
+}
+
+uint32_t DEV_SpeedRpm_GetPulseCount(en_dev_speed_rpm_id_t id)
+{
+	return g_stcDevSpeedRpm.ops->get_pulse_count(id);
 }
 
 /**

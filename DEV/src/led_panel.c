@@ -378,6 +378,11 @@ en_result_t LedPanel_ShowGearDigit(uint8_t digit)
 	return LedPanel_SetSevenSegment(g_au8LedPanelGearSegments, digit);
 }
 
+en_result_t LedPanel_ClearGearDigit(void)
+{
+	return LedPanel_SetSevenSegment(g_au8LedPanelGearSegments, 0xFFu);
+}
+
 /**
  * @brief 在 LED 面板上显示车速。
  * @param speed 车速值 (0 ~ 199)。
@@ -477,6 +482,102 @@ en_result_t LedPanel_ShowOdometer(uint32_t value, uint8_t decimal_digit)
  * @param bar_count 点亮的格数索引。
  * @return en_result_t 操作结果。
  */
+static en_result_t LedPanel_ShowOdometerDigits(const uint8_t digits[6],
+											   boolean_t decimal_point)
+{
+	en_result_t enRet;
+
+	enRet = LedPanel_SetSevenSegment(g_au8LedPanelOdoTenThousandsSegments, digits[0]);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
+
+	enRet = LedPanel_SetSevenSegment(g_au8LedPanelOdoThousandsSegments, digits[1]);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
+
+	enRet = LedPanel_SetSevenSegment(g_au8LedPanelOdoHundredsSegments, digits[2]);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
+
+	enRet = LedPanel_SetSevenSegment(g_au8LedPanelOdoTensSegments, digits[3]);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
+
+	enRet = LedPanel_SetSevenSegment(g_au8LedPanelOdoOnesSegments, digits[4]);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
+
+	enRet = LedPanel_SetSevenSegment(g_au8LedPanelOdoDecimalSegments, digits[5]);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
+
+	return Bsp_Tm3100Led_SetLinear(g_u8LedPanelOdoDecimalPointIndex, decimal_point);
+}
+
+en_result_t LedPanel_ShowTripOdometer(uint16_t tenths_km)
+{
+	uint16_t integer_km;
+	uint8_t digits[6];
+
+	if (tenths_km > 9999u)
+	{
+		tenths_km = 9999u;
+	}
+
+	integer_km = (uint16_t)(tenths_km / 10u);
+	digits[0] = 0xFFu;
+	digits[1] = 0xFFu;
+	digits[2] = (integer_km >= 100u) ? (uint8_t)(integer_km / 100u) : 0xFFu;
+	digits[3] = (integer_km >= 10u) ? (uint8_t)((integer_km / 10u) % 10u) : 0xFFu;
+	digits[4] = (uint8_t)(integer_km % 10u);
+	digits[5] = (uint8_t)(tenths_km % 10u);
+
+	return LedPanel_ShowOdometerDigits(digits, TRUE);
+}
+
+en_result_t LedPanel_ShowTotalOdometer(uint32_t km)
+{
+	uint8_t digits[6];
+	boolean_t significant;
+	uint32_t divisor;
+	uint8_t i;
+
+	if (km > 999999u)
+	{
+		km = 999999u;
+	}
+
+	significant = FALSE;
+	divisor = 100000u;
+	for (i = 0u; i < 6u; i++)
+	{
+		digits[i] = (uint8_t)((km / divisor) % 10u);
+		if ((digits[i] != 0u) || (i == 5u))
+		{
+			significant = TRUE;
+		}
+		else if (FALSE == significant)
+		{
+			digits[i] = 0xFFu;
+		}
+		divisor /= 10u;
+	}
+
+	return LedPanel_ShowOdometerDigits(digits, FALSE);
+}
+
 en_result_t LedPanel_ShowRpmBars(uint8_t bar_count)
 {
 	return LedPanel_ShowBars(g_au8LedPanelRpmBarIndices,

@@ -20,6 +20,7 @@ extern "C"
 		en_result_t (*init)(void);
 		void (*task_1ms)(void);
 		uint32_t (*get_freq_mhz)(en_dev_speed_rpm_id_t id);
+		uint32_t (*get_pulse_count)(en_dev_speed_rpm_id_t id);
 		boolean_t (*is_valid)(en_dev_speed_rpm_id_t id);
 	} stc_dev_speed_rpm_ops_t;
 
@@ -35,6 +36,7 @@ extern "C"
 	en_result_t DEV_SpeedRpm_Init(void);
 	void DEV_SpeedRpm_Task1ms(void);
 	uint32_t DEV_SpeedRpm_GetFreqMilliHz(en_dev_speed_rpm_id_t id);
+	uint32_t DEV_SpeedRpm_GetPulseCount(en_dev_speed_rpm_id_t id);
 	boolean_t DEV_SpeedRpm_IsValid(en_dev_speed_rpm_id_t id);
 
 #ifdef __cplusplus

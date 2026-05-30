@@ -67,8 +67,11 @@ extern "C"
 	en_result_t LedPanel_SetBorder(boolean_t level);
 	en_result_t LedPanel_ShowClock(uint8_t hour, uint8_t minute);
 	en_result_t LedPanel_ShowGearDigit(uint8_t digit);
+	en_result_t LedPanel_ClearGearDigit(void);
 	en_result_t LedPanel_ShowSpeed(uint16_t speed);
 	en_result_t LedPanel_ShowOdometer(uint32_t value, uint8_t decimal_digit);
+	en_result_t LedPanel_ShowTripOdometer(uint16_t tenths_km);
+	en_result_t LedPanel_ShowTotalOdometer(uint32_t km);
 	en_result_t LedPanel_ShowRpmBars(uint8_t bar_count);
 	en_result_t LedPanel_ShowRpmPercent(uint8_t percent);
 	en_result_t LedPanel_ShowFuelBars(uint8_t bar_count);
