@@ -599,11 +599,6 @@
               <FilePath>..\BSP\src\bsp_time_capture.c</FilePath>
             </File>
             <File>
-              <FileName>bsp_tim1_oe.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\BSP\src\bsp_tim1_oe.c</FilePath>
-            </File>
-            <File>
               <FileName>bsp_iic.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\BSP\src\bsp_iic.c</FilePath>

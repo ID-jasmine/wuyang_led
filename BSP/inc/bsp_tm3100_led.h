@@ -52,6 +52,8 @@ extern "C"
 	en_result_t Bsp_Tm3100Led_Fill(void);
 	en_result_t Bsp_Tm3100Led_Refresh(void);
 	en_result_t Bsp_Tm3100Led_OutputEnable(boolean_t enable);
+	en_result_t Bsp_Tm3100Led_SetBrightness(uint8_t brightness_percent);
+	uint8_t Bsp_Tm3100Led_GetBrightness(void);
 	uint16_t Bsp_Tm3100Led_GetChipData(uint8_t chip);
 	uint16_t *Bsp_Tm3100Led_GetBuffer(void);
 
