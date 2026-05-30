@@ -13,6 +13,7 @@ extern "C"
 		BspAdcIdFuel = 0u,
 		BspAdcIdAdPower,
 		BspAdcIdWaterTemp,
+		BspAdcIdIgn,
 		BspAdcIdCount,
 	} en_bsp_adc_id_t;
 

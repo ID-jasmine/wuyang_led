@@ -4,11 +4,21 @@
 
 #define DRV_ADC_SAMPLE_COUNT (10u)
 #define DRV_ADC_WAIT_100US	 (1u)
+#define DRV_ADC_REF_MV		 (5000u)
+#define DRV_ADC_FULL_SCALE	 (4095u)
+#define DRV_ADC_IGN_ON_MV	 (1430u)
+#define DRV_ADC_IGN_ON_RAW	 (((uint32_t)DRV_ADC_IGN_ON_MV * DRV_ADC_FULL_SCALE + \
+							  (DRV_ADC_REF_MV - 1u)) / \
+							 DRV_ADC_REF_MV)
+#define DRV_ADC_IGN_ON_MS	 (300u)
 
 static uint16_t s_au16DrvAdcAvg[BspAdcIdCount];
 static uint32_t s_au32DrvAdcSum[BspAdcIdCount];
 static uint8_t s_u8DrvAdcSampleCount = 0u;
 static boolean_t s_bDrvAdcReady = FALSE;
+static boolean_t s_bDrvAdcInited = FALSE;
+static uint16_t s_u16DrvAdcIgnOnCnt = 0u;
+static boolean_t s_bDrvAdcIgnActive = FALSE;
 
 static en_result_t DrvAdc_CheckId(en_bsp_adc_id_t id)
 {
@@ -24,6 +34,27 @@ static void DrvAdc_StartAndWait(void)
 {
 	BSP_ADC_Start();
 	delay100us_safe(DRV_ADC_WAIT_100US);
+}
+
+static void DrvAdc_UpdateIgnState(uint16_t raw)
+{
+	if (raw >= DRV_ADC_IGN_ON_RAW)
+	{
+		if (s_u16DrvAdcIgnOnCnt < DRV_ADC_IGN_ON_MS)
+		{
+			s_u16DrvAdcIgnOnCnt++;
+		}
+
+		if (s_u16DrvAdcIgnOnCnt >= DRV_ADC_IGN_ON_MS)
+		{
+			s_bDrvAdcIgnActive = TRUE;
+		}
+	}
+	else
+	{
+		s_u16DrvAdcIgnOnCnt = 0u;
+		s_bDrvAdcIgnActive = FALSE;
+	}
 }
 
 /**
@@ -42,18 +73,27 @@ void DRV_ADC_Init(void)
 	}
 	s_u8DrvAdcSampleCount = 0u;
 	s_bDrvAdcReady = FALSE;
+	s_bDrvAdcInited = FALSE;
+	s_u16DrvAdcIgnOnCnt = 0u;
+	s_bDrvAdcIgnActive = FALSE;
 
 	BSP_ADC_Init();
+	s_bDrvAdcInited = TRUE;
 }
 
 /**
- * @brief 执行 ADC 10ms 周期任务。
+ * @brief 执行 ADC 1ms 周期任务。
  *
  * 进行一次采样累加，并在达到设定样本数后更新平均值。
  */
-void DRV_ADC_Task10ms(void)
+void DRV_ADC_Task1ms(void)
 {
 	uint8_t id;
+
+	if (FALSE == s_bDrvAdcInited)
+	{
+		return;
+	}
 
 	DrvAdc_StartAndWait();
 
@@ -61,6 +101,8 @@ void DRV_ADC_Task10ms(void)
 	{
 		s_au32DrvAdcSum[id] += BSP_ADC_GetResult((en_bsp_adc_id_t)id);
 	}
+
+	DrvAdc_UpdateIgnState(BSP_ADC_GetResult(BspAdcIdIgn));
 
 	if (s_u8DrvAdcSampleCount < DRV_ADC_SAMPLE_COUNT)
 	{
@@ -79,6 +121,11 @@ void DRV_ADC_Task10ms(void)
 	}
 }
 
+void DRV_ADC_Task10ms(void)
+{
+	DRV_ADC_Task1ms();
+}
+
 /**
  * @brief 查询 ADC 平均值是否已经准备完成。
  * @return boolean_t `TRUE` 表示至少完成过一轮平均值计算，`FALSE` 表示未准备好。
@@ -86,6 +133,11 @@ void DRV_ADC_Task10ms(void)
 boolean_t DRV_ADC_IsReady(void)
 {
 	return s_bDrvAdcReady;
+}
+
+boolean_t DRV_ADC_IsIgnActive(void)
+{
+	return s_bDrvAdcIgnActive;
 }
 
 /**
@@ -110,6 +162,9 @@ uint16_t DRV_ADC_GetAvg(en_bsp_adc_id_t id)
  */
 void DRV_ADC_DeInit(void)
 {
+	s_bDrvAdcInited = FALSE;
+	s_u16DrvAdcIgnOnCnt = 0u;
+	s_bDrvAdcIgnActive = FALSE;
 	BSP_ADC_DeInit();
 }
 
@@ -121,4 +176,5 @@ void DRV_ADC_DeInit(void)
 void DRV_ADC_Wakeup(void)
 {
 	BSP_ADC_Wakeup();
+	s_bDrvAdcInited = TRUE;
 }

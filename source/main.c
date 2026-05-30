@@ -52,9 +52,9 @@ int32_t main(void)
 				{
 				}
 
-				(void)Bsp_Gpio_Write(BspGpioIdPower, FALSE);
 				(void)LedPanel_OutputEnable(FALSE);
 				(void)Bsp_Gpio_Write(BspGpioIdLEDPower, FALSE);
+				(void)Bsp_Gpio_Write(BspGpioIdPower, FALSE);
 			}
 
 			last_ign_state = IGN_ON_OFF;
@@ -65,23 +65,29 @@ int32_t main(void)
 			if (check_self_Start == 0)
 			{
 				static volatile uint32_t last_check_time = 0;
-				if (BSP_SYS_GetTickMs() - last_check_time >= 1000) // 10ms
+				if (BSP_SYS_GetTickMs() - last_check_time >= 10u)
 				{
 					last_check_time = BSP_SYS_GetTickMs();
-
 					check_self_Start = App_Vehicle_SelfCheckTask10ms();
 
 					// 自检函数 定义 并更改check_self_Start状态
 				}
-
-				// 1s喂狗
-				static volatile uint32_t last_wdt_cnt = 0;
-				if (BSP_SYS_GetTickMs() - last_wdt_cnt >= 1000)
+			}
+			else
+			{
+				static volatile uint32_t last_vehicle_time = 0;
+				if (BSP_SYS_GetTickMs() - last_vehicle_time >= 10u)
 				{
-					last_wdt_cnt = BSP_SYS_GetTickMs();
-					BSP_WDT_Feed();
+					last_vehicle_time = BSP_SYS_GetTickMs();
+					App_Vehicle_Task10ms();
 				}
 			}
+		}
+		static volatile uint32_t last_wdt_normal_cnt = 0;
+		if (BSP_SYS_GetTickMs() - last_wdt_normal_cnt >= 1000u)
+		{
+			last_wdt_normal_cnt = BSP_SYS_GetTickMs();
+			BSP_WDT_Feed();
 		}
 	}
 }
@@ -101,11 +107,13 @@ void SysTick_IRQHandler(void)
 {
 	// 1ms,一次
 	BSP_SYS_TickInc();
+
 	DEV_SpeedRpm_Task1ms();
 	DRV_Input_Task1ms();
+	DRV_ADC_Task1ms();
 
 	// 电门开关检测
-	if (TRUE == DRV_Input_IsActive(DrvInputIdIgn))
+	if (TRUE == DRV_ADC_IsIgnActive())
 	{
 		IGN_ON_OFF = 1;
 		DeepSleep_cnt = 0;

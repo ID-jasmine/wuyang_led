@@ -15,6 +15,7 @@ static const stc_bsp_adc_channel_cfg_t s_astBspAdcChannelCfg[BspAdcIdCount] = {
 	[BspAdcIdFuel] = {.port = GpioPortA, .pin = GpioPin1, .adc_ch = AdcExInputCH1},
 	[BspAdcIdAdPower] = {.port = GpioPortA, .pin = GpioPin0, .adc_ch = AdcExInputCH0},
 	[BspAdcIdWaterTemp] = {.port = GpioPortA, .pin = GpioPin2, .adc_ch = AdcExInputCH2},
+	[BspAdcIdIgn] = {.port = GpioPortB, .pin = GpioPin11, .adc_ch = AdcExInputCH18},
 };
 
 static en_adc_sqr_chmux_t BspAdc_GetSqrMux(uint8_t index)

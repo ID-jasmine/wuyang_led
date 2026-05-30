@@ -4,7 +4,7 @@
 #include "gpio.h"
 #include "sysctrl.h"
 
-#define TM3100_OE_ON_BRIGHTNESS_PERCENT	 (5u)
+#define TM3100_OE_ON_BRIGHTNESS_PERCENT	 (10u)
 #define TM3100_OE_MAX_BRIGHTNESS_PERCENT (100u)
 #define TM3100_SDI_PORT					 GpioPortA
 #define TM3100_SDI_PIN					 GpioPin8
