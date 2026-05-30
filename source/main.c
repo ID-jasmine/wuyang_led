@@ -25,6 +25,7 @@ static volatile uint16_t IGN_CNT = 0;		  // 电门计数器
 static volatile uint8_t rtc_time_1s_flag = 0;
 static volatile uint8_t last_ign_state = 0xFF; // 用于记录电门上一次的状态，以捕捉动作瞬间
 static volatile uint16_t DeepSleep_cnt = 0;
+static volatile uint8_t g_lpm_adc_checking = 0u;
 
 int32_t main(void)
 {
@@ -48,11 +49,7 @@ int32_t main(void)
 			}
 			else
 			{
-				// 电门关掉：断电、清除状态
-				if (last_ign_state == 1)
-				{
-				}
-
+				// 电门关掉：断电
 				(void)LedPanel_OutputEnable(FALSE);
 				(void)Bsp_Gpio_Write(BspGpioIdLEDPower, FALSE);
 				(void)Bsp_Gpio_Write(BspGpioIdPower, FALSE);
@@ -92,7 +89,39 @@ int32_t main(void)
 		}
 		else
 		{
+			if (DeepSleep_cnt >= SLEEP_TIME)
+			{
+				DRV_ADC_DeInit();
+				Bsp_Gpio_InitSleepPins();
+				BSP_WDT_Feed();
+				g_lpm_adc_checking = 1u;
+
+				BSP_LPM_EnterDeepSleep();
+
+				BSP_LPM_RestoreClockAfterWakeup();
+				BSP_WDT_Feed();
+
+				Bsp_Gpio_Init();
+				DRV_ADC_Wakeup();
+
+				if (rtc_time_1s_flag == 1u)
+				{
+					rtc_time_1s_flag = 0u;
+
+					if (TRUE == DRV_ADC_CheckIgnOnce(5u))
+					{
+						IGN_ON_OFF = 1u;
+						DeepSleep_cnt = 0u;
+						g_lpm_adc_checking = 0u;
+					}
+					else
+					{
+						IGN_ON_OFF = 0u;
+					}
+				}
+			}
 		}
+
 		static volatile uint32_t last_wdt_normal_cnt = 0;
 		if (BSP_SYS_GetTickMs() - last_wdt_normal_cnt >= 1000u)
 		{
@@ -101,6 +130,7 @@ int32_t main(void)
 		}
 	}
 }
+
 void sys_init(void)
 {
 	BSP_SysTick_Init();
@@ -124,6 +154,10 @@ void SysTick_IRQHandler(void)
 	DRV_ADC_Task1ms();
 	DRV_Button_Task1ms();
 
+	if (g_lpm_adc_checking)
+	{
+		return;
+	}
 	// 电门开关检测
 	if (TRUE == DRV_ADC_IsIgnActive())
 	{

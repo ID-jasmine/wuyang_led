@@ -2,16 +2,16 @@
 
 #include "bsp_sys.h"
 
-#define DRV_ADC_SAMPLE_COUNT (10u)
-#define DRV_ADC_WAIT_100US	 (1u)
-#define DRV_ADC_REF_MV		 (5000u)
-#define DRV_ADC_FULL_SCALE	 (4095u)
+#define DRV_ADC_SAMPLE_COUNT		  (10u)
+#define DRV_ADC_WAIT_100US			  (1u)
+#define DRV_ADC_REF_MV				  (5000u)
+#define DRV_ADC_FULL_SCALE			  (4095u)
 #define DRV_ADC_SENSOR_SERIES_RES_OHM (200u)
-#define DRV_ADC_IGN_ON_MV	 (1430u)
-#define DRV_ADC_IGN_ON_RAW	 (((uint32_t)DRV_ADC_IGN_ON_MV * DRV_ADC_FULL_SCALE + \
-							  (DRV_ADC_REF_MV - 1u)) / \
-							 DRV_ADC_REF_MV)
-#define DRV_ADC_IGN_ON_MS	 (300u)
+#define DRV_ADC_IGN_ON_MV			  (1430u)
+#define DRV_ADC_IGN_ON_RAW                                                               \
+	(((uint32_t)DRV_ADC_IGN_ON_MV * DRV_ADC_FULL_SCALE + (DRV_ADC_REF_MV - 1u)) /        \
+	 DRV_ADC_REF_MV)
+#define DRV_ADC_IGN_ON_MS (300u)
 
 static uint16_t s_au16DrvAdcAvg[BspAdcIdCount];
 static uint32_t s_au32DrvAdcSum[BspAdcIdCount];
@@ -132,6 +132,38 @@ void DRV_ADC_Task10ms(void)
 	DRV_ADC_Task1ms();
 }
 
+boolean_t DRV_ADC_CheckIgnOnce(uint8_t sample_count)
+{
+	uint8_t i;
+	uint8_t valid_count = 0u;
+	uint16_t raw;
+
+	if (FALSE == s_bDrvAdcInited)
+	{
+		return FALSE;
+	}
+
+	for (i = 0u; i < sample_count; i++)
+	{
+		DrvAdc_StartAndWait();
+
+		raw = BSP_ADC_GetResult(BspAdcIdIgn);
+
+		if (raw >= DRV_ADC_IGN_ON_RAW)
+		{
+			valid_count++;
+		}
+
+		delay100us_safe(1u);
+	}
+
+	/*
+	 * 5 次里至少 4 次超过阈值，认为电门有效。
+	 * 比单次判断抗干扰强一点。
+	 */
+	return (valid_count >= 4u) ? TRUE : FALSE;
+}
+
 /**
  * @brief 查询 ADC 平均值是否已经准备完成。
  * @return boolean_t `TRUE` 表示至少完成过一轮平均值计算，`FALSE` 表示未准备好。
@@ -183,8 +215,7 @@ uint16_t DRV_ADC_GetResistanceOhm(en_bsp_adc_id_t id)
 
 	denominator = power_adc - sensor_adc;
 	resistance_ohm =
-		(sensor_adc * DRV_ADC_SENSOR_SERIES_RES_OHM + (denominator / 2u)) /
-		denominator;
+		(sensor_adc * DRV_ADC_SENSOR_SERIES_RES_OHM + (denominator / 2u)) / denominator;
 	if (resistance_ohm >= DRV_ADC_RESISTANCE_INVALID_OHM)
 	{
 		return (uint16_t)(DRV_ADC_RESISTANCE_INVALID_OHM - 1u);

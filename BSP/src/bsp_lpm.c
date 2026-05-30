@@ -1,4 +1,5 @@
 #include "bsp_lpm.h"
+#include "adc.h"
 #include "ddl.h"
 #include "lpm.h"
 #include "sysctrl.h"
