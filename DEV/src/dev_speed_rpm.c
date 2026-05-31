@@ -1,8 +1,8 @@
 #include "dev_speed_rpm.h"
 #include "bsp_time_capture.h"
 
-#define DEV_SPEED_RPM_MIN_WINDOW_TICKS (100000u)
-#define DEV_SPEED_RPM_MIN_PULSE_COUNT  (32u)
+#define DEV_SPEED_RPM_MIN_WINDOW_TICKS (150000u)
+#define DEV_SPEED_RPM_MIN_PULSE_COUNT  (24u)
 #define DEV_SPEED_RPM_TIMEOUT_MS	   (1000u)
 
 typedef struct
