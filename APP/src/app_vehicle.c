@@ -13,8 +13,9 @@
 #define APP_VEHICLE_SELF_CHECK_STEP_COUNT	  (19u)
 #define APP_VEHICLE_NORMAL_REFRESH_TICKS	  (10u)
 #define APP_VEHICLE_ADC_FULL_SCALE			  (4095u)
-#define APP_VEHICLE_SPEED_PULSES_PER_KM		  (2850u)
+#define APP_VEHICLE_SPEED_PULSES_PER_KM		  (2800u)
 #define APP_VEHICLE_MILLIHZ_PER_HZ			  (1000u)
+#define APP_VEHICLE_HALL_POLE_PAIRS			  (2u)
 #define APP_VEHICLE_RPM_RATIO_NUMERATOR		  (667u)
 #define APP_VEHICLE_RPM_RATIO_DENOMINATOR	  (100u)
 #define APP_VEHICLE_RPM_PER_BAR				  (500u)
@@ -331,7 +332,8 @@ static uint32_t App_Vehicle_GetCurrentEngineRpm(void)
 	}
 
 	freq_mhz = DEV_SpeedRpm_GetFreqMilliHz(DevSpeedRpmIdRpm);
-	denominator = APP_VEHICLE_MILLIHZ_PER_HZ * APP_VEHICLE_RPM_RATIO_DENOMINATOR;
+	denominator = APP_VEHICLE_MILLIHZ_PER_HZ * APP_VEHICLE_RPM_RATIO_DENOMINATOR *
+				  APP_VEHICLE_HALL_POLE_PAIRS;
 
 	return (uint32_t)(((uint64_t)freq_mhz * 60u * APP_VEHICLE_RPM_RATIO_NUMERATOR +
 					   (denominator / 2u)) /

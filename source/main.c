@@ -14,11 +14,6 @@
 #define SLEEP_TIME 1500
 void sys_init(void);
 
-// volatile uint8_t second = 0;
-// volatile uint8_t minute = 0;
-// volatile uint8_t hour = 0;
-// // 在ui app 中定义
-
 static volatile uint8_t check_self_Start = 0; // 自检
 static volatile uint8_t IGN_ON_OFF = 0;		  // 电门
 static volatile uint16_t IGN_CNT = 0;		  // 电门计数器
@@ -40,11 +35,14 @@ int32_t main(void)
 				// 电门打开：上电
 				(void)Bsp_Gpio_Write(BspGpioIdPower, TRUE);
 				(void)Bsp_Gpio_Write(BspGpioIdLEDPower, TRUE);
+
 				(void)LedPanel_OutputEnable(FALSE);
 				LedPanel_Clear();
 				LedPanel_Refresh();
 				(void)LedPanel_OutputEnable(TRUE);
+
 				App_Vehicle_ResetSelfCheck();
+
 				check_self_Start = 0;
 			}
 			else
@@ -72,9 +70,8 @@ int32_t main(void)
 				if (BSP_SYS_GetTickMs() - last_check_time >= 10u)
 				{
 					last_check_time = BSP_SYS_GetTickMs();
-					check_self_Start = App_Vehicle_SelfCheckTask10ms();
 
-					// 自检函数 定义 并更改check_self_Start状态
+					check_self_Start = App_Vehicle_SelfCheckTask10ms();
 				}
 			}
 			else
@@ -83,6 +80,7 @@ int32_t main(void)
 				if (BSP_SYS_GetTickMs() - last_vehicle_time >= 10u)
 				{
 					last_vehicle_time = BSP_SYS_GetTickMs();
+
 					App_Vehicle_Task10ms();
 				}
 			}
