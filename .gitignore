@@ -12,6 +12,8 @@
 !/DEV/inc/*
 !/DEV/src/*
 
+!/APP/
+
 !/MDK/
 /MDK/*
 !/MDK/gpio_output.uvprojx
