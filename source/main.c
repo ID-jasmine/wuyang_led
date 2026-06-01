@@ -17,7 +17,7 @@ void sys_init(void);
 static volatile uint8_t check_self_Start = 0; // 自检
 static volatile uint8_t IGN_ON_OFF = 0;		  // 电门
 static volatile uint16_t IGN_CNT = 0;		  // 电门计数器
-static volatile uint8_t rtc_time_1s_flag = 0;
+static volatile uint8_t rtc_time_500ms_flag = 0;
 static volatile uint8_t last_ign_state = 0xFF; // 用于记录电门上一次的状态，以捕捉动作瞬间
 static volatile uint16_t DeepSleep_cnt = 0;
 static volatile uint8_t g_lpm_adc_checking = 0u;
@@ -58,10 +58,10 @@ int32_t main(void)
 
 		if (IGN_ON_OFF)
 		{
-			if (0u != rtc_time_1s_flag)
+			if (0u != rtc_time_500ms_flag)
 			{
-				rtc_time_1s_flag = 0u;
-				App_Vehicle_NotifyRtcTick1s();
+				rtc_time_500ms_flag = 0u;
+				App_Vehicle_NotifyRtcTick500ms();
 			}
 
 			if (check_self_Start == 0)
@@ -102,9 +102,9 @@ int32_t main(void)
 				Bsp_Gpio_Init();
 				DRV_ADC_Wakeup();
 
-				if (rtc_time_1s_flag == 1u)
+				if (rtc_time_500ms_flag == 1u)
 				{
-					rtc_time_1s_flag = 0u;
+					rtc_time_500ms_flag = 0u;
 
 					if (TRUE == DRV_ADC_CheckIgnOnce(5u))
 					{
@@ -176,7 +176,7 @@ void Rtc_IRQHandler(void)
 	if (Rtc_GetPridItStatus() == TRUE)
 	{
 		Rtc_ClearPrdfItStatus();
-		rtc_time_1s_flag = 1;
+		rtc_time_500ms_flag = 1;
 	}
 	// 清除闹钟标志，防止死锁
 	if (Rtc_GetAlmfItStatus() == TRUE)

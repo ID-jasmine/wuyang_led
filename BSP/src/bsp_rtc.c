@@ -24,9 +24,9 @@ void BSP_RTC_Init(uint8_t hour, uint8_t minute)
 
 	stcRtcInit.rtcAmpm = RtcPm;
 	stcRtcInit.rtcClksrc = RtcClkXtl;
-	stcRtcInit.rtcPrdsel.rtcPrdsel = RtcPrdx;
-	stcRtcInit.rtcPrdsel.rtcPrdx = 1u;
-	stcRtcInit.rtcPrdsel.rtcPrds = RtcNone;
+	stcRtcInit.rtcPrdsel.rtcPrdsel = RtcPrds;
+	stcRtcInit.rtcPrdsel.rtcPrdx = 0u;
+	stcRtcInit.rtcPrdsel.rtcPrds = Rtc05S;
 
 	stcRtcInit.rtcTime.u8Second = 0u;
 	stcRtcInit.rtcTime.u8Minute = DEC2BCD(minute);

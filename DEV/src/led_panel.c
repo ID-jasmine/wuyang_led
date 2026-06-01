@@ -28,6 +28,13 @@ static const uint8_t s_au8LedPanelDigitPattern[10] = {
 			  LED_PANEL_SEG_F | LED_PANEL_SEG_G),
 };
 
+static boolean_t LedPanel_IsAlwaysOffId(en_led_panel_id_t led_id)
+{
+	return (boolean_t)((LedPanelIdOilWarning == led_id) ||
+					   (LedPanelIdWaterTemp == led_id) ||
+					   (LedPanelIdEngineFault == led_id) || (LedPanelIdAbs == led_id));
+}
+
 static en_result_t LedPanel_SetImpl(en_led_panel_id_t led_id, boolean_t level)
 {
 	const stc_led_panel_map_t *pstcMap;
@@ -37,6 +44,11 @@ static en_result_t LedPanel_SetImpl(en_led_panel_id_t led_id, boolean_t level)
 	if (led_id >= g_stcLedPanel.count)
 	{
 		return ErrorInvalidParameter;
+	}
+
+	if ((TRUE == level) && (TRUE == LedPanel_IsAlwaysOffId(led_id)))
+	{
+		return Ok;
 	}
 
 	pstcMap = &g_stcLedPanel.map[led_id];
@@ -272,7 +284,30 @@ en_result_t LedPanel_Clear(void)
  */
 en_result_t LedPanel_Fill(void)
 {
-	return g_stcLedPanel.ops->fill();
+	en_result_t enRet;
+
+	enRet = g_stcLedPanel.ops->fill();
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
+
+	enRet = LedPanel_SetImpl(LedPanelIdOilWarning, FALSE);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
+	enRet = LedPanel_SetImpl(LedPanelIdWaterTemp, FALSE);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
+	enRet = LedPanel_SetImpl(LedPanelIdEngineFault, FALSE);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
+	return LedPanel_SetImpl(LedPanelIdAbs, FALSE);
 }
 
 /**
