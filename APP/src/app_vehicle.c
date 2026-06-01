@@ -1,6 +1,5 @@
 #include "app_vehicle.h"
 
-#include "bsp_sys.h"
 #include "bsp_tm3100_led.h"
 #include "dev_speed_rpm.h"
 #include "drv_adc.h"
@@ -44,6 +43,10 @@
 #define APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO (0u)
 #define APP_VEHICLE_FREQ_MEASURE			  DevSpeedRpmMeasureGate
 
+#if (APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO != 0u)
+#include "bsp_sys.h"
+#endif
+
 typedef struct
 {
 	uint32_t magic;
@@ -55,6 +58,12 @@ typedef struct
 	uint8_t display_trip;
 	uint16_t checksum;
 } stc_app_vehicle_mileage_store_t;
+
+typedef struct
+{
+	uint16_t input;
+	uint16_t output;
+} stc_app_vehicle_speed_map_t;
 
 static boolean_t s_bVehicleSelfCheckStarted = FALSE;
 static uint16_t s_u16VehicleSelfCheckTick = 0u;
@@ -80,11 +89,13 @@ static uint8_t s_u8VehicleDisplayRpmBars = 0u;
 static uint8_t s_u8VehicleRpmBarsCandidate = 0u;
 static uint8_t s_u8VehicleRpmBarsCandidateTicks = 0u;
 static boolean_t s_bVehicleRpmBarsDisplayInited = FALSE;
+#if (APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO != 0u)
 static uint32_t s_u32VehicleTestLastSpeedPulseCount = 0u;
 static uint32_t s_u32VehicleTestLastRpmPulseCount = 0u;
 static uint32_t s_u32VehicleTestGateStartMs = 0u;
 static uint32_t s_u32VehicleTestFreqX100 = 0u;
 static boolean_t s_bVehicleTestGateInited = FALSE;
+#endif
 
 static const uint8_t s_au8VehicleDigitPattern[10] = {
 	(uint8_t)(0x01u | 0x02u | 0x04u | 0x08u | 0x10u | 0x20u),
@@ -97,6 +108,11 @@ static const uint8_t s_au8VehicleDigitPattern[10] = {
 	(uint8_t)(0x01u | 0x02u | 0x04u),
 	(uint8_t)(0x01u | 0x02u | 0x04u | 0x08u | 0x10u | 0x20u | 0x40u),
 	(uint8_t)(0x01u | 0x02u | 0x04u | 0x08u | 0x20u | 0x40u),
+};
+
+static const stc_app_vehicle_speed_map_t s_astVehicleSpeedMap[] = {
+	{0u, 0u},	  {10u, 11u},	{20u, 21u},	{40u, 43u},	{60u, 66u},
+	{80u, 86u},  {100u, 108u}, {120u, 131u}, {140u, 151u}, {199u, 199u},
 };
 
 /* Clock state */
@@ -256,6 +272,8 @@ static uint16_t App_Vehicle_ConfirmDisplayU16(uint16_t sample, uint16_t *display
 											  uint8_t *candidate_ticks,
 											  boolean_t *inited)
 {
+	uint16_t target;
+
 	if (FALSE == *inited)
 	{
 		*display = sample;
@@ -284,8 +302,16 @@ static uint16_t App_Vehicle_ConfirmDisplayU16(uint16_t sample, uint16_t *display
 
 	if (*candidate_ticks >= APP_VEHICLE_DISPLAY_CONFIRM_TICKS)
 	{
-		*display = sample;
-		*candidate_ticks = 0u;
+		target = *candidate;
+		if (*display < target)
+		{
+			(*display)++;
+		}
+		else if (*display > target)
+		{
+			(*display)--;
+		}
+		*candidate_ticks = APP_VEHICLE_DISPLAY_CONFIRM_TICKS;
 	}
 
 	return *display;
@@ -296,6 +322,8 @@ static uint8_t App_Vehicle_ConfirmDisplayU8(uint8_t sample, uint8_t *display,
 											uint8_t *candidate_ticks,
 											boolean_t *inited)
 {
+	uint8_t target;
+
 	if (FALSE == *inited)
 	{
 		*display = sample;
@@ -324,11 +352,46 @@ static uint8_t App_Vehicle_ConfirmDisplayU8(uint8_t sample, uint8_t *display,
 
 	if (*candidate_ticks >= APP_VEHICLE_DISPLAY_CONFIRM_TICKS)
 	{
-		*display = sample;
-		*candidate_ticks = 0u;
+		target = *candidate;
+		if (*display < target)
+		{
+			(*display)++;
+		}
+		else if (*display > target)
+		{
+			(*display)--;
+		}
+		*candidate_ticks = APP_VEHICLE_DISPLAY_CONFIRM_TICKS;
 	}
 
 	return *display;
+}
+
+static uint16_t App_Vehicle_MapSpeed(uint16_t speed)
+{
+	uint8_t i;
+	const stc_app_vehicle_speed_map_t *lower;
+	const stc_app_vehicle_speed_map_t *upper;
+	uint32_t numerator;
+	uint32_t denominator;
+	uint32_t mapped;
+
+	for (i = 1u; i < ARRAY_SZ(s_astVehicleSpeedMap); i++)
+	{
+		upper = &s_astVehicleSpeedMap[i];
+		if (speed <= upper->input)
+		{
+			lower = &s_astVehicleSpeedMap[i - 1u];
+			numerator = (uint32_t)(speed - lower->input) *
+						(uint32_t)(upper->output - lower->output);
+			denominator = (uint32_t)(upper->input - lower->input);
+			mapped = (uint32_t)lower->output + ((numerator + (denominator / 2u)) /
+												denominator);
+			return (uint16_t)mapped;
+		}
+	}
+
+	return s_astVehicleSpeedMap[ARRAY_SZ(s_astVehicleSpeedMap) - 1u].output;
 }
 
 static uint16_t
@@ -456,6 +519,7 @@ static void App_Vehicle_UpdateMileage(void)
 	App_Vehicle_SaveMileage();
 }
 
+#if (APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO != 0u)
 static void App_Vehicle_UpdateTestFreqX100(void)
 {
 	uint32_t speed_pulse_count;
@@ -500,6 +564,7 @@ static void App_Vehicle_UpdateTestFreqX100(void)
 		s_u32VehicleTestFreqX100 = 999999u;
 	}
 }
+#endif
 
 static void App_Vehicle_ShowMileage(void)
 {
@@ -595,6 +660,11 @@ static uint16_t App_Vehicle_GetCurrentSpeed(void)
 	denominator = APP_VEHICLE_SPEED_PULSES_PER_KM * APP_VEHICLE_MILLIHZ_PER_HZ;
 	speed = ((uint64_t)freq_mhz * 3600u + (denominator / 2u)) / denominator;
 
+	if (speed > 199u)
+	{
+		speed = 199u;
+	}
+	speed = App_Vehicle_MapSpeed((uint16_t)speed);
 	if (speed > 199u)
 	{
 		speed = 199u;
@@ -1001,11 +1071,13 @@ void App_Vehicle_ResetSelfCheck(void)
 	s_u8VehicleRpmBarsCandidate = 0u;
 	s_u8VehicleRpmBarsCandidateTicks = 0u;
 	s_bVehicleRpmBarsDisplayInited = FALSE;
+#if (APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO != 0u)
 	s_u32VehicleTestLastSpeedPulseCount = DEV_SpeedRpm_GetPulseCount(DevSpeedRpmIdSpeed);
 	s_u32VehicleTestLastRpmPulseCount = DEV_SpeedRpm_GetPulseCount(DevSpeedRpmIdRpm);
 	s_u32VehicleTestGateStartMs = BSP_SYS_GetTickMs();
 	s_u32VehicleTestFreqX100 = 0u;
 	s_bVehicleTestGateInited = FALSE;
+#endif
 	s_bVehicleClockValid = FALSE;
 	App_Vehicle_LoadMileage();
 	App_Vehicle_UpdateClockCache();

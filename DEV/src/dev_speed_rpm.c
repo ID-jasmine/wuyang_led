@@ -8,6 +8,7 @@
 #define DEV_SPEED_RPM_GATE_SLOW_MS	   (1000u)
 #define DEV_SPEED_RPM_GATE_FAST_PULSES (15u)
 #define DEV_SPEED_RPM_GATE_MID_PULSES  (10u)
+#define DEV_SPEED_RPM_GATE_AVG_COUNT   (4u)
 #define DEV_SPEED_RPM_TIMEOUT_MS	   (1000u)
 #define DEV_SPEED_RPM_FILTER_SHIFT	   (2u)
 #define DEV_SPEED_RPM_DEFAULT_MEASURE  DevSpeedRpmMeasureGate
@@ -22,6 +23,10 @@ typedef struct
 	volatile uint32_t total_pulse_count;
 	volatile uint16_t timeout_count;
 	volatile boolean_t started;
+	uint32_t gate_freq_samples[DEV_SPEED_RPM_GATE_AVG_COUNT];
+	uint32_t gate_freq_sum;
+	uint8_t gate_freq_index;
+	uint8_t gate_freq_count;
 	uint32_t freq_mhz[DevSpeedRpmMeasureCount];
 	boolean_t valid[DevSpeedRpmMeasureCount];
 } stc_dev_speed_rpm_state_t;
@@ -89,6 +94,19 @@ static void DevSpeedRpm_ResetGateWindow(stc_dev_speed_rpm_state_t *state)
 	state->gate_elapsed_ms = 0u;
 }
 
+static void DevSpeedRpm_ResetGateAverage(stc_dev_speed_rpm_state_t *state)
+{
+	uint8_t i;
+
+	for (i = 0u; i < DEV_SPEED_RPM_GATE_AVG_COUNT; i++)
+	{
+		state->gate_freq_samples[i] = 0u;
+	}
+	state->gate_freq_sum = 0u;
+	state->gate_freq_index = 0u;
+	state->gate_freq_count = 0u;
+}
+
 static void DevSpeedRpm_SetInvalid(en_dev_speed_rpm_id_t id)
 {
 	uint8_t i;
@@ -98,6 +116,7 @@ static void DevSpeedRpm_SetInvalid(en_dev_speed_rpm_id_t id)
 		s_astDevSpeedRpmState[id].freq_mhz[i] = 0u;
 		s_astDevSpeedRpmState[id].valid[i] = FALSE;
 	}
+	DevSpeedRpm_ResetGateAverage(&s_astDevSpeedRpmState[id]);
 }
 
 static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp,
@@ -144,7 +163,28 @@ static void DevSpeedRpm_UpdateFreq(en_dev_speed_rpm_id_t id,
 {
 	if (DevSpeedRpmMeasureGate == measure)
 	{
-		s_astDevSpeedRpmState[id].freq_mhz[measure] = new_freq_mhz;
+		stc_dev_speed_rpm_state_t *state = &s_astDevSpeedRpmState[id];
+
+		if (state->gate_freq_count >= DEV_SPEED_RPM_GATE_AVG_COUNT)
+		{
+			state->gate_freq_sum -= state->gate_freq_samples[state->gate_freq_index];
+		}
+		else
+		{
+			state->gate_freq_count++;
+		}
+
+		state->gate_freq_samples[state->gate_freq_index] = new_freq_mhz;
+		state->gate_freq_sum += new_freq_mhz;
+		state->gate_freq_index++;
+		if (state->gate_freq_index >= DEV_SPEED_RPM_GATE_AVG_COUNT)
+		{
+			state->gate_freq_index = 0u;
+		}
+
+		s_astDevSpeedRpmState[id].freq_mhz[measure] =
+			(state->gate_freq_sum + (state->gate_freq_count / 2u)) /
+			state->gate_freq_count;
 		s_astDevSpeedRpmState[id].valid[measure] = TRUE;
 		return;
 	}
@@ -338,6 +378,7 @@ static en_result_t DevSpeedRpm_InitImpl(void)
 		s_astDevSpeedRpmState[i].total_pulse_count = 0u;
 		s_astDevSpeedRpmState[i].timeout_count = 0u;
 		s_astDevSpeedRpmState[i].started = FALSE;
+		DevSpeedRpm_ResetGateAverage(&s_astDevSpeedRpmState[i]);
 		DevSpeedRpm_SetInvalid((en_dev_speed_rpm_id_t)i);
 	}
 
