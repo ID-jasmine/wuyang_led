@@ -14,6 +14,7 @@ extern "C"
 		BspAdcIdAdPower,
 		BspAdcIdWaterTemp,
 		BspAdcIdIgn,
+		BspAdcIdZmIn,
 		BspAdcIdCount,
 	} en_bsp_adc_id_t;
 

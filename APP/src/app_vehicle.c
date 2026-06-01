@@ -18,7 +18,7 @@
 	 APP_VEHICLE_SELF_CHECK_FULL_ON_TICKS + APP_VEHICLE_SELF_CHECK_RAMP_UP_TICKS)
 #define APP_VEHICLE_SELF_CHECK_SPEED_DIGIT_TICKS (8u)
 #define APP_VEHICLE_SELF_CHECK_SWEEP_TICKS		 (4u)
-#define APP_VEHICLE_NORMAL_REFRESH_TICKS		 (10u)
+#define APP_VEHICLE_NORMAL_REFRESH_TICKS		 (5u)
 #define APP_VEHICLE_ADC_FULL_SCALE				 (4095u)
 #define APP_VEHICLE_SPEED_PULSES_PER_KM			 (2800u)
 #define APP_VEHICLE_MILLIHZ_PER_HZ				 (1000u)
@@ -26,7 +26,7 @@
 #define APP_VEHICLE_RPM_RATIO_NUMERATOR			 (667u)
 #define APP_VEHICLE_RPM_RATIO_DENOMINATOR		 (100u)
 #define APP_VEHICLE_RPM_PER_BAR					 (500u)
-#define APP_VEHICLE_DISPLAY_CONFIRM_TICKS		 (2u)
+#define APP_VEHICLE_DISPLAY_CONFIRM_TICKS		 (1u)
 #define APP_VEHICLE_SPEED_DISPLAY_STEP			 (3u)
 #define APP_VEHICLE_GEAR_BLINK_TICKS			 (5u)
 #define APP_VEHICLE_FUEL_FAST_TICKS				 (30u)
@@ -40,6 +40,9 @@
 #define APP_VEHICLE_TOTAL_MAX_TENTHS		   (9999990u)
 #define APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO (0u)
 #define APP_VEHICLE_FREQ_MEASURE			   DevSpeedRpmMeasureGate
+#define APP_VEHICLE_BRIGHTNESS_DARK_RAW		   (372u)
+#define APP_VEHICLE_BRIGHTNESS_MIN			   (15u)
+#define APP_VEHICLE_BRIGHTNESS_MAX			   (50u)
 
 #if (APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO != 0u)
 #include "bsp_sys.h"
@@ -76,6 +79,7 @@ static uint8_t s_u8VehicleDisplayRpmBars = 0u;
 static uint8_t s_u8VehicleRpmBarsCandidate = 0u;
 static uint8_t s_u8VehicleRpmBarsCandidateTicks = 0u;
 static boolean_t s_bVehicleRpmBarsDisplayInited = FALSE;
+static uint8_t s_u8VehicleBrightnessPercent = APP_VEHICLE_BRIGHTNESS_MAX;
 #if (APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO != 0u)
 static uint32_t s_u32VehicleTestLastSpeedPulseCount = 0u;
 static uint32_t s_u32VehicleTestLastRpmPulseCount = 0u;
@@ -216,6 +220,15 @@ static uint16_t App_Vehicle_ConfirmDisplayU16(uint16_t sample, uint16_t *display
 		return *display;
 	}
 
+	/* 采样为 0 时立刻回零，不逐格递减 */
+	if (0u == sample)
+	{
+		*display = 0u;
+		*candidate = 0u;
+		*candidate_ticks = 0u;
+		return *display;
+	}
+
 	if (sample == *display)
 	{
 		*candidate = sample;
@@ -272,6 +285,15 @@ static uint8_t App_Vehicle_ConfirmDisplayU8(uint8_t sample, uint8_t *display,
 		*candidate = sample;
 		*candidate_ticks = 0u;
 		*inited = TRUE;
+		return *display;
+	}
+
+	/* 采样为 0 时立刻回零，不逐格递减 */
+	if (0u == sample)
+	{
+		*display = 0u;
+		*candidate = 0u;
+		*candidate_ticks = 0u;
 		return *display;
 	}
 
@@ -867,6 +889,45 @@ static void App_Vehicle_ShowCurrentGear(void)
 							 ((active_count <= 1u) || (TRUE == gear_on))));
 }
 
+static void App_Vehicle_UpdateBrightness(void)
+{
+	uint16_t raw;
+	uint32_t span;
+	uint32_t offset;
+	uint8_t brightness;
+
+	if (FALSE == DRV_ADC_IsReady())
+	{
+		return;
+	}
+
+	raw = DRV_ADC_GetAvg(BspAdcIdZmIn);
+	if (raw <= APP_VEHICLE_BRIGHTNESS_DARK_RAW)
+	{
+		brightness = APP_VEHICLE_BRIGHTNESS_MIN;
+	}
+	else
+	{
+		span = (uint32_t)APP_VEHICLE_ADC_FULL_SCALE - APP_VEHICLE_BRIGHTNESS_DARK_RAW;
+		offset = (uint32_t)raw - APP_VEHICLE_BRIGHTNESS_DARK_RAW;
+		brightness = (uint8_t)(APP_VEHICLE_BRIGHTNESS_MIN +
+							   ((offset *
+								 (APP_VEHICLE_BRIGHTNESS_MAX - APP_VEHICLE_BRIGHTNESS_MIN) +
+								 (span / 2u)) /
+								span));
+		if (brightness > APP_VEHICLE_BRIGHTNESS_MAX)
+		{
+			brightness = APP_VEHICLE_BRIGHTNESS_MAX;
+		}
+	}
+
+	if (brightness != s_u8VehicleBrightnessPercent)
+	{
+		s_u8VehicleBrightnessPercent = brightness;
+		(void)LedPanel_SetBrightness(brightness);
+	}
+}
+
 static uint8_t App_Vehicle_GetFuelTargetBars(void)
 {
 	uint16_t resistance_ohm;
@@ -1073,6 +1134,7 @@ static void App_Vehicle_ShowNormalFrame(void)
 #else
 	App_Vehicle_UpdateTestFreqX100();
 #endif
+	App_Vehicle_UpdateBrightness();
 
 	LedPanel_Clear();
 	LedPanel_SetBorder(TRUE);
