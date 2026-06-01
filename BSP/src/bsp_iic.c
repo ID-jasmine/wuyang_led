@@ -114,9 +114,9 @@ void BSP_IIC_Start(IIC_Handle_t *iic)
 	BspIic_SdaDirOut(iic);
 	(void)Gpio_SetIO(iic->sda_port, iic->sda_pin);
 	(void)Gpio_SetIO(iic->scl_port, iic->scl_pin);
-	BspIic_Delay(1u);
+	BspIic_Delay(4u);
 	(void)Gpio_ClrIO(iic->sda_port, iic->sda_pin);
-	BspIic_Delay(1u);
+	BspIic_Delay(4u);
 	(void)Gpio_ClrIO(iic->scl_port, iic->scl_pin);
 }
 
@@ -129,11 +129,11 @@ void BSP_IIC_Stop(IIC_Handle_t *iic)
 	BspIic_SdaDirOut(iic);
 	(void)Gpio_ClrIO(iic->scl_port, iic->scl_pin);
 	(void)Gpio_ClrIO(iic->sda_port, iic->sda_pin);
-	BspIic_Delay(1u);
+	BspIic_Delay(4u);
 	(void)Gpio_SetIO(iic->scl_port, iic->scl_pin);
-	BspIic_Delay(1u);
+	BspIic_Delay(4u);
 	(void)Gpio_SetIO(iic->sda_port, iic->sda_pin);
-	BspIic_Delay(1u);
+	BspIic_Delay(4u);
 }
 
 /**
@@ -158,11 +158,11 @@ void BSP_IIC_Send(IIC_Handle_t *iic, uint8_t data)
 			(void)Gpio_ClrIO(iic->sda_port, iic->sda_pin);
 		}
 		data <<= 1;
-		BspIic_Delay(1u);
+		BspIic_Delay(4u);
 		(void)Gpio_SetIO(iic->scl_port, iic->scl_pin);
-		BspIic_Delay(1u);
+		BspIic_Delay(4u);
 		(void)Gpio_ClrIO(iic->scl_port, iic->scl_pin);
-		BspIic_Delay(1u);
+		BspIic_Delay(4u);
 	}
 }
 
@@ -176,9 +176,9 @@ en_result_t BSP_IIC_WaitAck(IIC_Handle_t *iic)
 
 	BspIic_SdaDirIn(iic);
 	(void)Gpio_SetIO(iic->sda_port, iic->sda_pin);
-	BspIic_Delay(1u);
+	BspIic_Delay(2u);
 	(void)Gpio_SetIO(iic->scl_port, iic->scl_pin);
-	BspIic_Delay(1u);
+	BspIic_Delay(2u);
 
 	while (Gpio_GetInputIO(iic->sda_port, iic->sda_pin))
 	{
@@ -209,14 +209,14 @@ uint8_t BSP_IIC_ReadByte(IIC_Handle_t *iic, uint8_t ack)
 	for (i = 0u; i < 8u; i++)
 	{
 		(void)Gpio_ClrIO(iic->scl_port, iic->scl_pin);
-		BspIic_Delay(1u);
+		BspIic_Delay(4u);
 		(void)Gpio_SetIO(iic->scl_port, iic->scl_pin);
 		receive <<= 1;
 		if (Gpio_GetInputIO(iic->sda_port, iic->sda_pin))
 		{
 			receive++;
 		}
-		BspIic_Delay(1u);
+		BspIic_Delay(4u);
 	}
 
 	BspIic_SdaDirOut(iic);
@@ -229,10 +229,144 @@ uint8_t BSP_IIC_ReadByte(IIC_Handle_t *iic, uint8_t ack)
 	{
 		(void)Gpio_SetIO(iic->sda_port, iic->sda_pin);
 	}
-	BspIic_Delay(1u);
+	BspIic_Delay(4u);
 	(void)Gpio_SetIO(iic->scl_port, iic->scl_pin);
-	BspIic_Delay(1u);
+	BspIic_Delay(4u);
 	(void)Gpio_ClrIO(iic->scl_port, iic->scl_pin);
+
+	return receive;
+}
+
+// =========================================================================
+// EEPROM IIC 通信底层 (PB6=SCL, PB7=SDA)
+// =========================================================================
+void EEPROM_IIC_Init(void) {
+	stc_gpio_cfg_t stcGpioCfg;
+	Sysctrl_SetPeripheralGate(SysctrlPeripheralGpio, TRUE);
+
+	DDL_ZERO_STRUCT(stcGpioCfg);
+	stcGpioCfg.enDir = GpioDirOut;
+	stcGpioCfg.enDrv = GpioDrvH;
+	stcGpioCfg.enPu = GpioPuDisable;
+	stcGpioCfg.enPd = GpioPdDisable;
+	stcGpioCfg.enOD = GpioOdEnable;
+
+	(void)Gpio_Init(GpioPortB, GpioPin6, &stcGpioCfg); // SCL
+	(void)Gpio_Init(GpioPortB, GpioPin7, &stcGpioCfg); // SDA
+
+	EE_SCL_H();
+	EE_SDA_H();
+}
+
+static void EE_SDA_Dir_In(void) {
+	stc_gpio_cfg_t stcGpioCfg;
+
+	DDL_ZERO_STRUCT(stcGpioCfg);
+	stcGpioCfg.enDir = GpioDirIn;
+	stcGpioCfg.enPu = GpioPuDisable;
+	stcGpioCfg.enPd = GpioPdDisable;
+	stcGpioCfg.enOD = GpioOdEnable;
+
+	(void)Gpio_Init(GpioPortB, GpioPin7, &stcGpioCfg);
+}
+
+static void EE_SDA_Dir_Out(void) {
+	stc_gpio_cfg_t stcGpioCfg;
+
+	DDL_ZERO_STRUCT(stcGpioCfg);
+	stcGpioCfg.enDir = GpioDirOut;
+	stcGpioCfg.enDrv = GpioDrvH;
+	stcGpioCfg.enPu = GpioPuDisable;
+	stcGpioCfg.enPd = GpioPdDisable;
+	stcGpioCfg.enOD = GpioOdEnable;
+
+	(void)Gpio_Init(GpioPortB, GpioPin7, &stcGpioCfg);
+}
+
+void EE_IIC_Start(void) {
+	EE_SDA_Dir_Out();
+	EE_SDA_H();
+	EE_SCL_H();
+	BspIic_Delay(4u);
+	EE_SDA_L();
+	BspIic_Delay(4u);
+	EE_SCL_L();
+}
+
+void EE_IIC_Stop(void) {
+	EE_SDA_Dir_Out();
+	EE_SCL_L();
+	EE_SDA_L();
+	BspIic_Delay(4u);
+	EE_SCL_H();
+	BspIic_Delay(4u);
+	EE_SDA_H();
+	BspIic_Delay(4u);
+}
+
+uint8_t EE_IIC_Wait_Ack(void) {
+	uint8_t errTime = 0u;
+
+	EE_SDA_Dir_In();
+	EE_SDA_H();
+	BspIic_Delay(2u);
+	EE_SCL_H();
+	BspIic_Delay(2u);
+
+	while (EE_SDA_IN()) {
+		errTime++;
+		if (errTime > 250u) {
+			EE_IIC_Stop();
+			return 1u;
+		}
+	}
+	EE_SCL_L();
+	return 0u;
+}
+
+void EE_IIC_Send(uint8_t data) {
+	uint8_t i;
+
+	EE_SDA_Dir_Out();
+	EE_SCL_L();
+	for (i = 0u; i < 8u; i++) {
+		if (data & 0x80u)
+			EE_SDA_H();
+		else
+			EE_SDA_L();
+		data <<= 1;
+		BspIic_Delay(4u);
+		EE_SCL_H();
+		BspIic_Delay(4u);
+		EE_SCL_L();
+		BspIic_Delay(4u);
+	}
+}
+
+uint8_t EE_IIC_ReadByte(uint8_t ack) {
+	uint8_t i, receive = 0u;
+
+	EE_SDA_Dir_In();
+	for (i = 0u; i < 8u; i++) {
+		EE_SCL_L();
+		BspIic_Delay(4u);
+		EE_SCL_H();
+		receive <<= 1;
+		if (EE_SDA_IN())
+			receive++;
+		BspIic_Delay(4u);
+	}
+
+	EE_SDA_Dir_Out();
+	EE_SCL_L();
+	if (!ack)
+		EE_SDA_L();
+	else
+		EE_SDA_H();
+	BspIic_Delay(4u);
+	EE_SCL_H();
+	BspIic_Delay(4u);
+	EE_SCL_L();
 
 	return receive;
 }

@@ -1,5 +1,6 @@
 #include "app_vehicle.h"
 #include "bsp_gpio.h"
+#include "bsp_iic.h"
 #include "bsp_lpm.h"
 #include "bsp_sys.h"
 #include "bsp_time_capture.h"
@@ -133,6 +134,7 @@ void sys_init(void)
 {
 	BSP_SysTick_Init();
 	(void)Bsp_Gpio_Init();
+	EEPROM_IIC_Init();
 	(void)DRV_Input_Init();
 	DRV_Button_Init();
 	(void)DRV_RTC_Init(12, 0); // 明确忽略返回值
