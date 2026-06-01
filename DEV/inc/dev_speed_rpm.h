@@ -15,13 +15,24 @@ extern "C"
 		DevSpeedRpmIdCount,
 	} en_dev_speed_rpm_id_t;
 
+	typedef enum
+	{
+		DevSpeedRpmMeasureGate = 0u,
+		DevSpeedRpmMeasureAdaptive,
+		DevSpeedRpmMeasureCount,
+	} en_dev_speed_rpm_measure_t;
+
 	typedef struct
 	{
 		en_result_t (*init)(void);
 		void (*task_1ms)(void);
 		uint32_t (*get_freq_mhz)(en_dev_speed_rpm_id_t id);
+		uint32_t (*get_freq_mhz_by_measure)(en_dev_speed_rpm_id_t id,
+											 en_dev_speed_rpm_measure_t measure);
 		uint32_t (*get_pulse_count)(en_dev_speed_rpm_id_t id);
 		boolean_t (*is_valid)(en_dev_speed_rpm_id_t id);
+		boolean_t (*is_valid_by_measure)(en_dev_speed_rpm_id_t id,
+										  en_dev_speed_rpm_measure_t measure);
 	} stc_dev_speed_rpm_ops_t;
 
 	typedef struct
@@ -36,8 +47,12 @@ extern "C"
 	en_result_t DEV_SpeedRpm_Init(void);
 	void DEV_SpeedRpm_Task1ms(void);
 	uint32_t DEV_SpeedRpm_GetFreqMilliHz(en_dev_speed_rpm_id_t id);
+	uint32_t DEV_SpeedRpm_GetFreqMilliHzByMeasure(en_dev_speed_rpm_id_t id,
+												  en_dev_speed_rpm_measure_t measure);
 	uint32_t DEV_SpeedRpm_GetPulseCount(en_dev_speed_rpm_id_t id);
 	boolean_t DEV_SpeedRpm_IsValid(en_dev_speed_rpm_id_t id);
+	boolean_t DEV_SpeedRpm_IsValidByMeasure(en_dev_speed_rpm_id_t id,
+											en_dev_speed_rpm_measure_t measure);
 
 #ifdef __cplusplus
 }

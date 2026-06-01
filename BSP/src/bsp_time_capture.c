@@ -70,7 +70,7 @@ static void Bsp_Tim3Capture_PortInit(void)
 	gpio_cfg.enDir = GpioDirIn;
 	gpio_cfg.enDrv = GpioDrvH;
 	gpio_cfg.enPu = GpioPuDisable;
-	gpio_cfg.enPd = GpioPdDisable;
+	gpio_cfg.enPd = GpioPdEnable;
 	gpio_cfg.enOD = GpioOdDisable;
 	gpio_cfg.enCtrlMode = GpioFastIO;
 

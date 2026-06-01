@@ -3,18 +3,27 @@
 
 #define DEV_SPEED_RPM_MIN_WINDOW_TICKS (150000u)
 #define DEV_SPEED_RPM_MIN_PULSE_COUNT  (24u)
+#define DEV_SPEED_RPM_GATE_FAST_MS	   (250u)
+#define DEV_SPEED_RPM_GATE_MID_MS	   (500u)
+#define DEV_SPEED_RPM_GATE_SLOW_MS	   (1000u)
+#define DEV_SPEED_RPM_GATE_FAST_PULSES (15u)
+#define DEV_SPEED_RPM_GATE_MID_PULSES  (10u)
 #define DEV_SPEED_RPM_TIMEOUT_MS	   (1000u)
+#define DEV_SPEED_RPM_FILTER_SHIFT	   (2u)
+#define DEV_SPEED_RPM_DEFAULT_MEASURE  DevSpeedRpmMeasureGate
 
 typedef struct
 {
 	volatile uint32_t first_tick;
 	volatile uint32_t last_tick;
 	volatile uint16_t pulse_count;
+	volatile uint16_t gate_pulse_count;
+	volatile uint16_t gate_elapsed_ms;
 	volatile uint32_t total_pulse_count;
 	volatile uint16_t timeout_count;
 	volatile boolean_t started;
-	uint32_t freq_mhz;
-	boolean_t valid;
+	uint32_t freq_mhz[DevSpeedRpmMeasureCount];
+	boolean_t valid[DevSpeedRpmMeasureCount];
 } stc_dev_speed_rpm_state_t;
 
 typedef struct
@@ -22,7 +31,9 @@ typedef struct
 	uint32_t first_tick;
 	uint32_t last_tick;
 	uint16_t pulse_count;
-	boolean_t need_calc;
+	uint16_t gate_pulse_count;
+	uint16_t elapsed_ms;
+	boolean_t need_calc[DevSpeedRpmMeasureCount];
 	boolean_t timeout;
 } stc_dev_speed_rpm_snapshot_t;
 
@@ -32,6 +43,16 @@ static uint32_t s_u32TimerClockHz = 0u;
 static en_result_t DevSpeedRpm_CheckId(en_dev_speed_rpm_id_t id)
 {
 	if (id >= DevSpeedRpmIdCount)
+	{
+		return ErrorInvalidParameter;
+	}
+
+	return Ok;
+}
+
+static en_result_t DevSpeedRpm_CheckMeasure(en_dev_speed_rpm_measure_t measure)
+{
+	if (measure >= DevSpeedRpmMeasureCount)
 	{
 		return ErrorInvalidParameter;
 	}
@@ -54,11 +75,29 @@ static en_dev_speed_rpm_id_t DevSpeedRpm_CapChToId(bsp_tim3_cap_ch_t ch)
 	}
 }
 
-static void DevSpeedRpm_ResetWindow(stc_dev_speed_rpm_state_t *state, uint32_t timestamp)
+static void DevSpeedRpm_ResetAdaptiveWindow(stc_dev_speed_rpm_state_t *state,
+											uint32_t timestamp)
 {
 	state->first_tick = timestamp;
 	state->last_tick = timestamp;
 	state->pulse_count = 0u;
+}
+
+static void DevSpeedRpm_ResetGateWindow(stc_dev_speed_rpm_state_t *state)
+{
+	state->gate_pulse_count = 0u;
+	state->gate_elapsed_ms = 0u;
+}
+
+static void DevSpeedRpm_SetInvalid(en_dev_speed_rpm_id_t id)
+{
+	uint8_t i;
+
+	for (i = 0u; i < DevSpeedRpmMeasureCount; i++)
+	{
+		s_astDevSpeedRpmState[id].freq_mhz[i] = 0u;
+		s_astDevSpeedRpmState[id].valid[i] = FALSE;
+	}
 }
 
 static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp,
@@ -77,10 +116,15 @@ static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp
 
 	state = &s_astDevSpeedRpmState[id];
 	state->total_pulse_count++;
+	if (state->gate_pulse_count < 0xFFFFu)
+	{
+		state->gate_pulse_count++;
+	}
+
 	if (FALSE == state->started)
 	{
 		state->started = TRUE;
-		DevSpeedRpm_ResetWindow(state, timestamp);
+		DevSpeedRpm_ResetAdaptiveWindow(state, timestamp);
 	}
 	else
 	{
@@ -94,44 +138,113 @@ static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp
 	state->timeout_count = 0u;
 }
 
+static void DevSpeedRpm_UpdateFreq(en_dev_speed_rpm_id_t id,
+								   en_dev_speed_rpm_measure_t measure,
+								   uint32_t new_freq_mhz)
+{
+	if (DevSpeedRpmMeasureGate == measure)
+	{
+		s_astDevSpeedRpmState[id].freq_mhz[measure] = new_freq_mhz;
+		s_astDevSpeedRpmState[id].valid[measure] = TRUE;
+		return;
+	}
+
+	if (TRUE == s_astDevSpeedRpmState[id].valid[measure])
+	{
+		s_astDevSpeedRpmState[id].freq_mhz[measure] =
+			(uint32_t)((((uint64_t)s_astDevSpeedRpmState[id].freq_mhz[measure] *
+						 ((1u << DEV_SPEED_RPM_FILTER_SHIFT) - 1u)) +
+						new_freq_mhz + (1u << (DEV_SPEED_RPM_FILTER_SHIFT - 1u))) >>
+					   DEV_SPEED_RPM_FILTER_SHIFT);
+	}
+	else
+	{
+		s_astDevSpeedRpmState[id].freq_mhz[measure] = new_freq_mhz;
+	}
+
+	s_astDevSpeedRpmState[id].valid[measure] = TRUE;
+}
+
+static boolean_t DevSpeedRpm_IsGateReady(const stc_dev_speed_rpm_state_t *state)
+{
+	if (state->gate_elapsed_ms >= DEV_SPEED_RPM_GATE_SLOW_MS)
+	{
+		return TRUE;
+	}
+
+	if ((state->gate_elapsed_ms >= DEV_SPEED_RPM_GATE_MID_MS) &&
+		(state->gate_pulse_count >= DEV_SPEED_RPM_GATE_MID_PULSES))
+	{
+		return TRUE;
+	}
+
+	if ((state->gate_elapsed_ms >= DEV_SPEED_RPM_GATE_FAST_MS) &&
+		(state->gate_pulse_count >= DEV_SPEED_RPM_GATE_FAST_PULSES))
+	{
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+static void DevSpeedRpm_CalcGateFreq(en_dev_speed_rpm_id_t id,
+									 const stc_dev_speed_rpm_snapshot_t *snapshot)
+{
+	uint32_t freq_mhz;
+
+	if (0u == snapshot->elapsed_ms)
+	{
+		return;
+	}
+
+	if (0u == snapshot->gate_pulse_count)
+	{
+		s_astDevSpeedRpmState[id].freq_mhz[DevSpeedRpmMeasureGate] = 0u;
+		s_astDevSpeedRpmState[id].valid[DevSpeedRpmMeasureGate] = FALSE;
+		return;
+	}
+
+	freq_mhz = (uint32_t)(((uint64_t)snapshot->gate_pulse_count * 1000000u) /
+						  snapshot->elapsed_ms);
+	DevSpeedRpm_UpdateFreq(id, DevSpeedRpmMeasureGate, freq_mhz);
+}
+
+static void DevSpeedRpm_CalcAdaptiveFreq(en_dev_speed_rpm_id_t id,
+										 const stc_dev_speed_rpm_snapshot_t *snapshot)
+{
+	uint32_t elapsed_ticks;
+	uint32_t freq_mhz;
+
+	elapsed_ticks = snapshot->last_tick - snapshot->first_tick;
+	if ((0u == elapsed_ticks) || (0u == snapshot->pulse_count))
+	{
+		return;
+	}
+
+	freq_mhz = (uint32_t)(((uint64_t)snapshot->pulse_count * s_u32TimerClockHz *
+						   1000u) /
+						  elapsed_ticks);
+	DevSpeedRpm_UpdateFreq(id, DevSpeedRpmMeasureAdaptive, freq_mhz);
+}
+
 static void DevSpeedRpm_CalcFreq(en_dev_speed_rpm_id_t id,
 								 const stc_dev_speed_rpm_snapshot_t *snapshot)
 {
-	uint32_t elapsed_ticks;
-	uint32_t pulse_count;
-	uint64_t freq_mhz;
-
 	if (TRUE == snapshot->timeout)
 	{
-		s_astDevSpeedRpmState[id].freq_mhz = 0u;
-		s_astDevSpeedRpmState[id].valid = FALSE;
+		DevSpeedRpm_SetInvalid(id);
 		return;
 	}
 
-	if (FALSE == snapshot->need_calc)
+	if (TRUE == snapshot->need_calc[DevSpeedRpmMeasureGate])
 	{
-		return;
+		DevSpeedRpm_CalcGateFreq(id, snapshot);
 	}
 
-	elapsed_ticks = snapshot->last_tick - snapshot->first_tick;
-	pulse_count = snapshot->pulse_count;
-
-	if ((0u == elapsed_ticks) || (0u == pulse_count))
+	if (TRUE == snapshot->need_calc[DevSpeedRpmMeasureAdaptive])
 	{
-		return;
+		DevSpeedRpm_CalcAdaptiveFreq(id, snapshot);
 	}
-
-	if ((elapsed_ticks < DEV_SPEED_RPM_MIN_WINDOW_TICKS) &&
-		(pulse_count < DEV_SPEED_RPM_MIN_PULSE_COUNT))
-	{
-		return;
-	}
-
-	freq_mhz = (uint64_t)pulse_count * s_u32TimerClockHz * 1000u;
-	freq_mhz /= elapsed_ticks;
-
-	s_astDevSpeedRpmState[id].freq_mhz = (uint32_t)freq_mhz;
-	s_astDevSpeedRpmState[id].valid = TRUE;
 }
 
 static void DevSpeedRpm_TakeSnapshot(en_dev_speed_rpm_id_t id,
@@ -142,8 +255,11 @@ static void DevSpeedRpm_TakeSnapshot(en_dev_speed_rpm_id_t id,
 	stc_dev_speed_rpm_state_t *state;
 
 	state = &s_astDevSpeedRpmState[id];
-	snapshot->need_calc = FALSE;
+	snapshot->need_calc[DevSpeedRpmMeasureGate] = FALSE;
+	snapshot->need_calc[DevSpeedRpmMeasureAdaptive] = FALSE;
 	snapshot->timeout = FALSE;
+	snapshot->gate_pulse_count = 0u;
+	snapshot->elapsed_ms = 0u;
 
 	primask = __get_PRIMASK();
 	__disable_irq();
@@ -165,30 +281,43 @@ static void DevSpeedRpm_TakeSnapshot(en_dev_speed_rpm_id_t id,
 		if (state->timeout_count >= DEV_SPEED_RPM_TIMEOUT_MS)
 		{
 			state->started = FALSE;
-			DevSpeedRpm_ResetWindow(state, state->last_tick);
+			DevSpeedRpm_ResetAdaptiveWindow(state, state->last_tick);
+			DevSpeedRpm_ResetGateWindow(state);
 			snapshot->timeout = TRUE;
 			__set_PRIMASK(primask);
 			return;
 		}
 
-		snapshot->first_tick = state->first_tick;
-		snapshot->last_tick = state->last_tick;
-		snapshot->pulse_count = state->pulse_count;
-		elapsed_ticks = snapshot->last_tick - snapshot->first_tick;
-
-		if (((elapsed_ticks >= DEV_SPEED_RPM_MIN_WINDOW_TICKS) ||
-			 (snapshot->pulse_count >= DEV_SPEED_RPM_MIN_PULSE_COUNT)) &&
-			(snapshot->pulse_count > 0u))
+		if (state->gate_elapsed_ms < DEV_SPEED_RPM_GATE_SLOW_MS)
 		{
-			snapshot->need_calc = TRUE;
-			DevSpeedRpm_ResetWindow(state, state->last_tick);
+			state->gate_elapsed_ms++;
+		}
+		if (TRUE == DevSpeedRpm_IsGateReady(state))
+		{
+			snapshot->gate_pulse_count = state->gate_pulse_count;
+			snapshot->elapsed_ms = state->gate_elapsed_ms;
+			snapshot->need_calc[DevSpeedRpmMeasureGate] = TRUE;
+			DevSpeedRpm_ResetGateWindow(state);
+		}
+
+		elapsed_ticks = state->last_tick - state->first_tick;
+		if (((elapsed_ticks >= DEV_SPEED_RPM_MIN_WINDOW_TICKS) ||
+			 (state->pulse_count >= DEV_SPEED_RPM_MIN_PULSE_COUNT)) &&
+			(state->pulse_count > 0u))
+		{
+			snapshot->first_tick = state->first_tick;
+			snapshot->last_tick = state->last_tick;
+			snapshot->pulse_count = state->pulse_count;
+			snapshot->need_calc[DevSpeedRpmMeasureAdaptive] = TRUE;
+			DevSpeedRpm_ResetAdaptiveWindow(state, state->last_tick);
 		}
 	}
 	else
 	{
 		state->started = FALSE;
 		state->timeout_count = DEV_SPEED_RPM_TIMEOUT_MS;
-		DevSpeedRpm_ResetWindow(state, state->last_tick);
+		DevSpeedRpm_ResetAdaptiveWindow(state, state->last_tick);
+		DevSpeedRpm_ResetGateWindow(state);
 		snapshot->timeout = TRUE;
 	}
 
@@ -204,11 +333,12 @@ static en_result_t DevSpeedRpm_InitImpl(void)
 		s_astDevSpeedRpmState[i].first_tick = 0u;
 		s_astDevSpeedRpmState[i].last_tick = 0u;
 		s_astDevSpeedRpmState[i].pulse_count = 0u;
+		s_astDevSpeedRpmState[i].gate_pulse_count = 0u;
+		s_astDevSpeedRpmState[i].gate_elapsed_ms = 0u;
 		s_astDevSpeedRpmState[i].total_pulse_count = 0u;
 		s_astDevSpeedRpmState[i].timeout_count = 0u;
-		s_astDevSpeedRpmState[i].freq_mhz = 0u;
-		s_astDevSpeedRpmState[i].valid = FALSE;
 		s_astDevSpeedRpmState[i].started = FALSE;
+		DevSpeedRpm_SetInvalid((en_dev_speed_rpm_id_t)i);
 	}
 
 	(void)BSP_TimeCapture_RegisterCallback(DevSpeedRpm_CaptureCallback, NULL);
@@ -230,14 +360,21 @@ static void DevSpeedRpm_Task1msImpl(void)
 	}
 }
 
-static uint32_t DevSpeedRpm_GetFreqMilliHzImpl(en_dev_speed_rpm_id_t id)
+static uint32_t
+DevSpeedRpm_GetFreqMilliHzByMeasureImpl(en_dev_speed_rpm_id_t id,
+										en_dev_speed_rpm_measure_t measure)
 {
-	if (Ok != DevSpeedRpm_CheckId(id))
+	if ((Ok != DevSpeedRpm_CheckId(id)) || (Ok != DevSpeedRpm_CheckMeasure(measure)))
 	{
 		return 0u;
 	}
 
-	return s_astDevSpeedRpmState[id].freq_mhz;
+	return s_astDevSpeedRpmState[id].freq_mhz[measure];
+}
+
+static uint32_t DevSpeedRpm_GetFreqMilliHzImpl(en_dev_speed_rpm_id_t id)
+{
+	return DevSpeedRpm_GetFreqMilliHzByMeasureImpl(id, DEV_SPEED_RPM_DEFAULT_MEASURE);
 }
 
 static uint32_t DevSpeedRpm_GetPulseCountImpl(en_dev_speed_rpm_id_t id)
@@ -258,22 +395,31 @@ static uint32_t DevSpeedRpm_GetPulseCountImpl(en_dev_speed_rpm_id_t id)
 	return pulse_count;
 }
 
-static boolean_t DevSpeedRpm_IsValidImpl(en_dev_speed_rpm_id_t id)
+static boolean_t
+DevSpeedRpm_IsValidByMeasureImpl(en_dev_speed_rpm_id_t id,
+								 en_dev_speed_rpm_measure_t measure)
 {
-	if (Ok != DevSpeedRpm_CheckId(id))
+	if ((Ok != DevSpeedRpm_CheckId(id)) || (Ok != DevSpeedRpm_CheckMeasure(measure)))
 	{
 		return FALSE;
 	}
 
-	return s_astDevSpeedRpmState[id].valid;
+	return s_astDevSpeedRpmState[id].valid[measure];
+}
+
+static boolean_t DevSpeedRpm_IsValidImpl(en_dev_speed_rpm_id_t id)
+{
+	return DevSpeedRpm_IsValidByMeasureImpl(id, DEV_SPEED_RPM_DEFAULT_MEASURE);
 }
 
 static const stc_dev_speed_rpm_ops_t s_stcDevSpeedRpmOps = {
 	.init = DevSpeedRpm_InitImpl,
 	.task_1ms = DevSpeedRpm_Task1msImpl,
 	.get_freq_mhz = DevSpeedRpm_GetFreqMilliHzImpl,
+	.get_freq_mhz_by_measure = DevSpeedRpm_GetFreqMilliHzByMeasureImpl,
 	.get_pulse_count = DevSpeedRpm_GetPulseCountImpl,
 	.is_valid = DevSpeedRpm_IsValidImpl,
+	.is_valid_by_measure = DevSpeedRpm_IsValidByMeasureImpl,
 };
 
 stc_dev_speed_rpm_t g_stcDevSpeedRpm = {
@@ -302,7 +448,7 @@ void DEV_SpeedRpm_Task1ms(void)
 }
 
 /**
- * @brief 获取指定通道的频率值。
+ * @brief 获取指定通道的默认频率值。
  * @param id 通道 ID。
  * @return uint32_t 频率值，单位为 mHz；无效通道时返回 `0`。
  */
@@ -311,17 +457,29 @@ uint32_t DEV_SpeedRpm_GetFreqMilliHz(en_dev_speed_rpm_id_t id)
 	return g_stcDevSpeedRpm.ops->get_freq_mhz(id);
 }
 
+uint32_t DEV_SpeedRpm_GetFreqMilliHzByMeasure(en_dev_speed_rpm_id_t id,
+											  en_dev_speed_rpm_measure_t measure)
+{
+	return g_stcDevSpeedRpm.ops->get_freq_mhz_by_measure(id, measure);
+}
+
 uint32_t DEV_SpeedRpm_GetPulseCount(en_dev_speed_rpm_id_t id)
 {
 	return g_stcDevSpeedRpm.ops->get_pulse_count(id);
 }
 
 /**
- * @brief 查询指定通道的频率数据是否有效。
+ * @brief 查询指定通道的默认频率数据是否有效。
  * @param id 通道 ID。
  * @return boolean_t `TRUE` 表示当前频率有效，`FALSE` 表示无效或已超时。
  */
 boolean_t DEV_SpeedRpm_IsValid(en_dev_speed_rpm_id_t id)
 {
 	return g_stcDevSpeedRpm.ops->is_valid(id);
+}
+
+boolean_t DEV_SpeedRpm_IsValidByMeasure(en_dev_speed_rpm_id_t id,
+										en_dev_speed_rpm_measure_t measure)
+{
+	return g_stcDevSpeedRpm.ops->is_valid_by_measure(id, measure);
 }

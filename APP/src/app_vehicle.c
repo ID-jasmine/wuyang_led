@@ -1,5 +1,6 @@
 #include "app_vehicle.h"
 
+#include "bsp_sys.h"
 #include "bsp_tm3100_led.h"
 #include "dev_speed_rpm.h"
 #include "drv_adc.h"
@@ -9,8 +10,17 @@
 #include "drv_rtc.h"
 #include "led_panel.h"
 
-#define APP_VEHICLE_SELF_CHECK_TICKS		  (150u)
-#define APP_VEHICLE_SELF_CHECK_STEP_COUNT	  (19u)
+#define APP_VEHICLE_SELF_CHECK_ALL_SEG_TICKS (15u)
+#define APP_VEHICLE_SELF_CHECK_SETUP_TICKS	  (1u)
+#define APP_VEHICLE_SELF_CHECK_RPM_DOWN_TICKS (150u)
+#define APP_VEHICLE_SELF_CHECK_FULL_ON_TICKS  (1u)
+#define APP_VEHICLE_SELF_CHECK_RAMP_UP_TICKS  (165u)
+#define APP_VEHICLE_SELF_CHECK_TICKS                                               \
+	(APP_VEHICLE_SELF_CHECK_ALL_SEG_TICKS + APP_VEHICLE_SELF_CHECK_SETUP_TICKS +  \
+	 APP_VEHICLE_SELF_CHECK_RPM_DOWN_TICKS + APP_VEHICLE_SELF_CHECK_FULL_ON_TICKS + \
+	 APP_VEHICLE_SELF_CHECK_RAMP_UP_TICKS)
+#define APP_VEHICLE_SELF_CHECK_SPEED_DIGIT_TICKS (8u)
+#define APP_VEHICLE_SELF_CHECK_SWEEP_TICKS	   (4u)
 #define APP_VEHICLE_NORMAL_REFRESH_TICKS	  (10u)
 #define APP_VEHICLE_ADC_FULL_SCALE			  (4095u)
 #define APP_VEHICLE_SPEED_PULSES_PER_KM		  (2800u)
@@ -19,6 +29,7 @@
 #define APP_VEHICLE_RPM_RATIO_NUMERATOR		  (667u)
 #define APP_VEHICLE_RPM_RATIO_DENOMINATOR	  (100u)
 #define APP_VEHICLE_RPM_PER_BAR				  (500u)
+#define APP_VEHICLE_DISPLAY_CONFIRM_TICKS	  (2u)
 #define APP_VEHICLE_GEAR_BLINK_TICKS		  (5u)
 #define APP_VEHICLE_FUEL_FAST_TICKS			  (30u)
 #define APP_VEHICLE_FUEL_SLOW_TICKS			  (300u)
@@ -30,6 +41,8 @@
 #define APP_VEHICLE_MILEAGE_EEPROM_ADDR		  (0u)
 #define APP_VEHICLE_MILEAGE_MAGIC			  (0x4F444F31u)
 #define APP_VEHICLE_MILEAGE_VERSION			  (1u)
+#define APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO (0u)
+#define APP_VEHICLE_FREQ_MEASURE			  DevSpeedRpmMeasureGate
 
 typedef struct
 {
@@ -59,6 +72,32 @@ static uint16_t s_u16VehicleFuelFastTick = 0u;
 static uint16_t s_u16VehicleFuelSlowTick = 0u;
 static uint8_t s_u8VehicleGearBlinkTick = 0u;
 static boolean_t s_bVehicleGearBlinkOn = TRUE;
+static uint16_t s_u16VehicleDisplaySpeed = 0u;
+static uint16_t s_u16VehicleSpeedCandidate = 0u;
+static uint8_t s_u8VehicleSpeedCandidateTicks = 0u;
+static boolean_t s_bVehicleSpeedDisplayInited = FALSE;
+static uint8_t s_u8VehicleDisplayRpmBars = 0u;
+static uint8_t s_u8VehicleRpmBarsCandidate = 0u;
+static uint8_t s_u8VehicleRpmBarsCandidateTicks = 0u;
+static boolean_t s_bVehicleRpmBarsDisplayInited = FALSE;
+static uint32_t s_u32VehicleTestLastSpeedPulseCount = 0u;
+static uint32_t s_u32VehicleTestLastRpmPulseCount = 0u;
+static uint32_t s_u32VehicleTestGateStartMs = 0u;
+static uint32_t s_u32VehicleTestFreqX100 = 0u;
+static boolean_t s_bVehicleTestGateInited = FALSE;
+
+static const uint8_t s_au8VehicleDigitPattern[10] = {
+	(uint8_t)(0x01u | 0x02u | 0x04u | 0x08u | 0x10u | 0x20u),
+	(uint8_t)(0x02u | 0x04u),
+	(uint8_t)(0x01u | 0x02u | 0x08u | 0x10u | 0x40u),
+	(uint8_t)(0x01u | 0x02u | 0x04u | 0x08u | 0x40u),
+	(uint8_t)(0x02u | 0x04u | 0x20u | 0x40u),
+	(uint8_t)(0x01u | 0x04u | 0x08u | 0x20u | 0x40u),
+	(uint8_t)(0x01u | 0x04u | 0x08u | 0x10u | 0x20u | 0x40u),
+	(uint8_t)(0x01u | 0x02u | 0x04u),
+	(uint8_t)(0x01u | 0x02u | 0x04u | 0x08u | 0x10u | 0x20u | 0x40u),
+	(uint8_t)(0x01u | 0x02u | 0x04u | 0x08u | 0x20u | 0x40u),
+};
 
 /* Clock state */
 static uint8_t s_u8VehicleClockHour = 0u;
@@ -69,36 +108,227 @@ static boolean_t s_bVehicleClockSettingHour = TRUE;
 static boolean_t s_bVehicleClockBlinkState = FALSE;
 static uint8_t s_u8VehicleClockBlinkTick = 0;
 
-static uint8_t App_Vehicle_GetSelfCheckStep(uint16_t tick)
+static en_result_t App_Vehicle_SetLinearList(const uint8_t *indices, uint8_t count,
+											 boolean_t level)
 {
-	if (tick >= APP_VEHICLE_SELF_CHECK_TICKS)
+	uint8_t i;
+	en_result_t enRet;
+
+	if ((NULL == indices) || (0u == count))
 	{
-		tick = (uint16_t)(APP_VEHICLE_SELF_CHECK_TICKS - 1u);
+		return ErrorInvalidParameter;
 	}
 
-	return (uint8_t)((APP_VEHICLE_SELF_CHECK_STEP_COUNT - 1u) -
-					 ((tick * APP_VEHICLE_SELF_CHECK_STEP_COUNT) /
-					  APP_VEHICLE_SELF_CHECK_TICKS));
+	for (i = 0u; i < count; i++)
+	{
+		enRet = Bsp_Tm3100Led_SetLinear(indices[i], level);
+		if (Ok != enRet)
+		{
+			return enRet;
+		}
+	}
+
+	return Ok;
 }
 
-static uint8_t App_Vehicle_GetSelfCheckDigit(uint8_t step)
+static en_result_t
+App_Vehicle_SetSegmentPattern(const uint8_t segments[LED_PANEL_SEGMENT_COUNT],
+							  uint8_t pattern)
 {
-	if (step >= 10u)
+	uint8_t i;
+	en_result_t enRet;
+
+	if (NULL == segments)
 	{
-		return (uint8_t)(step - 9u);
+		return ErrorInvalidParameter;
 	}
 
-	return step;
+	for (i = 0u; i < LED_PANEL_SEGMENT_COUNT; i++)
+	{
+		enRet = Bsp_Tm3100Led_SetLinear(segments[i],
+										(boolean_t)(0u != (pattern & (uint8_t)(1u << i))));
+		if (Ok != enRet)
+		{
+			return enRet;
+		}
+	}
+
+	return Ok;
 }
 
-static uint16_t App_Vehicle_GetSelfCheckSpeed(uint8_t step)
+static en_result_t
+App_Vehicle_SetSegmentGroupPattern(const stc_led_panel_index_group_t groups[LED_PANEL_SEGMENT_COUNT],
+								   uint8_t pattern)
 {
-	if (step >= 9u)
+	uint8_t i;
+	en_result_t enRet;
+
+	if (NULL == groups)
 	{
-		return (uint16_t)(100u + ((uint16_t)(step - 9u) * 11u));
+		return ErrorInvalidParameter;
 	}
 
-	return (uint16_t)((step + 1u) * 11u);
+	for (i = 0u; i < LED_PANEL_SEGMENT_COUNT; i++)
+	{
+		enRet = App_Vehicle_SetLinearList(groups[i].indices, groups[i].count,
+										  (boolean_t)(0u != (pattern & (uint8_t)(1u << i))));
+		if (Ok != enRet)
+		{
+			return enRet;
+		}
+	}
+
+	return Ok;
+}
+
+static uint8_t App_Vehicle_GetDigitPattern(uint8_t digit)
+{
+	if (digit > 9u)
+	{
+		return 0u;
+	}
+
+	return s_au8VehicleDigitPattern[digit];
+}
+
+static void App_Vehicle_ShowSelfCheckAllSegments(void)
+{
+	uint8_t full_pattern = App_Vehicle_GetDigitPattern(8u);
+
+	LedPanel_Clear();
+	App_Vehicle_SetSegmentPattern(g_au8LedPanelClockHourTensSegments, full_pattern);
+	App_Vehicle_SetSegmentPattern(g_au8LedPanelClockHourOnesSegments, full_pattern);
+	App_Vehicle_SetSegmentPattern(g_au8LedPanelClockMinuteTensSegments, full_pattern);
+	App_Vehicle_SetSegmentPattern(g_au8LedPanelClockMinuteOnesSegments, full_pattern);
+	App_Vehicle_SetSegmentPattern(g_au8LedPanelGearSegments, full_pattern);
+	App_Vehicle_SetSegmentPattern(g_au8LedPanelOdoTenThousandsSegments, full_pattern);
+	App_Vehicle_SetSegmentPattern(g_au8LedPanelOdoThousandsSegments, full_pattern);
+	App_Vehicle_SetSegmentPattern(g_au8LedPanelOdoHundredsSegments, full_pattern);
+	App_Vehicle_SetSegmentPattern(g_au8LedPanelOdoTensSegments, full_pattern);
+	App_Vehicle_SetSegmentPattern(g_au8LedPanelOdoOnesSegments, full_pattern);
+	App_Vehicle_SetSegmentPattern(g_au8LedPanelOdoDecimalSegments, full_pattern);
+	App_Vehicle_SetSegmentGroupPattern(g_astLedPanelSpeedTensSegments, full_pattern);
+	App_Vehicle_SetSegmentGroupPattern(g_astLedPanelSpeedOnesSegments, full_pattern);
+	App_Vehicle_SetLinearList(g_au8LedPanelSpeedHundredsSegB,
+							  ARRAY_SZ(g_au8LedPanelSpeedHundredsSegB), TRUE);
+	App_Vehicle_SetLinearList(g_au8LedPanelSpeedHundredsSegC,
+							  ARRAY_SZ(g_au8LedPanelSpeedHundredsSegC), TRUE);
+	LedPanel_Refresh();
+}
+
+static void App_Vehicle_ShowSelfCheckSpeedRaw(uint8_t tens_digit, uint8_t ones_digit,
+											  boolean_t hundreds_on)
+{
+	App_Vehicle_SetLinearList(g_au8LedPanelSpeedHundredsSegB,
+							  ARRAY_SZ(g_au8LedPanelSpeedHundredsSegB), hundreds_on);
+	App_Vehicle_SetLinearList(g_au8LedPanelSpeedHundredsSegC,
+							  ARRAY_SZ(g_au8LedPanelSpeedHundredsSegC), hundreds_on);
+	App_Vehicle_SetSegmentGroupPattern(g_astLedPanelSpeedTensSegments,
+									   App_Vehicle_GetDigitPattern(tens_digit));
+	App_Vehicle_SetSegmentGroupPattern(g_astLedPanelSpeedOnesSegments,
+									   App_Vehicle_GetDigitPattern(ones_digit));
+}
+
+static void App_Vehicle_ShowSelfCheckSpeedSweep(uint16_t tick)
+{
+	static const uint8_t au8SweepPatterns[] = {
+		(uint8_t)(0x04u | 0x08u),
+		(uint8_t)(0x08u | 0x10u),
+		(uint8_t)(0x10u | 0x20u),
+		(uint8_t)(0x20u | 0x01u),
+		(uint8_t)(0x01u | 0x02u),
+		(uint8_t)(0x02u | 0x04u),
+	};
+	uint8_t pattern;
+
+	pattern = au8SweepPatterns[(tick / APP_VEHICLE_SELF_CHECK_SWEEP_TICKS) %
+							   ARRAY_SZ(au8SweepPatterns)];
+	App_Vehicle_SetLinearList(g_au8LedPanelSpeedHundredsSegB,
+							  ARRAY_SZ(g_au8LedPanelSpeedHundredsSegB), FALSE);
+	App_Vehicle_SetLinearList(g_au8LedPanelSpeedHundredsSegC,
+							  ARRAY_SZ(g_au8LedPanelSpeedHundredsSegC), FALSE);
+	App_Vehicle_SetSegmentGroupPattern(g_astLedPanelSpeedTensSegments, pattern);
+	App_Vehicle_SetSegmentGroupPattern(g_astLedPanelSpeedOnesSegments, pattern);
+}
+
+static uint16_t App_Vehicle_ConfirmDisplayU16(uint16_t sample, uint16_t *display,
+											  uint16_t *candidate,
+											  uint8_t *candidate_ticks,
+											  boolean_t *inited)
+{
+	if (FALSE == *inited)
+	{
+		*display = sample;
+		*candidate = sample;
+		*candidate_ticks = 0u;
+		*inited = TRUE;
+		return *display;
+	}
+
+	if (sample == *display)
+	{
+		*candidate = sample;
+		*candidate_ticks = 0u;
+		return *display;
+	}
+
+	if (sample != *candidate)
+	{
+		*candidate = sample;
+		*candidate_ticks = 1u;
+	}
+	else if (*candidate_ticks < APP_VEHICLE_DISPLAY_CONFIRM_TICKS)
+	{
+		(*candidate_ticks)++;
+	}
+
+	if (*candidate_ticks >= APP_VEHICLE_DISPLAY_CONFIRM_TICKS)
+	{
+		*display = sample;
+		*candidate_ticks = 0u;
+	}
+
+	return *display;
+}
+
+static uint8_t App_Vehicle_ConfirmDisplayU8(uint8_t sample, uint8_t *display,
+											uint8_t *candidate,
+											uint8_t *candidate_ticks,
+											boolean_t *inited)
+{
+	if (FALSE == *inited)
+	{
+		*display = sample;
+		*candidate = sample;
+		*candidate_ticks = 0u;
+		*inited = TRUE;
+		return *display;
+	}
+
+	if (sample == *display)
+	{
+		*candidate = sample;
+		*candidate_ticks = 0u;
+		return *display;
+	}
+
+	if (sample != *candidate)
+	{
+		*candidate = sample;
+		*candidate_ticks = 1u;
+	}
+	else if (*candidate_ticks < APP_VEHICLE_DISPLAY_CONFIRM_TICKS)
+	{
+		(*candidate_ticks)++;
+	}
+
+	if (*candidate_ticks >= APP_VEHICLE_DISPLAY_CONFIRM_TICKS)
+	{
+		*display = sample;
+		*candidate_ticks = 0u;
+	}
+
+	return *display;
 }
 
 static uint16_t
@@ -226,8 +456,57 @@ static void App_Vehicle_UpdateMileage(void)
 	App_Vehicle_SaveMileage();
 }
 
+static void App_Vehicle_UpdateTestFreqX100(void)
+{
+	uint32_t speed_pulse_count;
+	uint32_t rpm_pulse_count;
+	uint32_t speed_delta;
+	uint32_t rpm_delta;
+	uint32_t display_delta;
+	uint32_t now_ms;
+	uint32_t elapsed_ms;
+
+	now_ms = BSP_SYS_GetTickMs();
+	if (FALSE == s_bVehicleTestGateInited)
+	{
+		s_u32VehicleTestLastSpeedPulseCount =
+			DEV_SpeedRpm_GetPulseCount(DevSpeedRpmIdSpeed);
+		s_u32VehicleTestLastRpmPulseCount = DEV_SpeedRpm_GetPulseCount(DevSpeedRpmIdRpm);
+		s_u32VehicleTestGateStartMs = now_ms;
+		s_bVehicleTestGateInited = TRUE;
+		return;
+	}
+
+	elapsed_ms = now_ms - s_u32VehicleTestGateStartMs;
+	if (elapsed_ms < 1000u)
+	{
+		return;
+	}
+
+	speed_pulse_count = DEV_SpeedRpm_GetPulseCount(DevSpeedRpmIdSpeed);
+	rpm_pulse_count = DEV_SpeedRpm_GetPulseCount(DevSpeedRpmIdRpm);
+	speed_delta = speed_pulse_count - s_u32VehicleTestLastSpeedPulseCount;
+	rpm_delta = rpm_pulse_count - s_u32VehicleTestLastRpmPulseCount;
+	s_u32VehicleTestLastSpeedPulseCount = speed_pulse_count;
+	s_u32VehicleTestLastRpmPulseCount = rpm_pulse_count;
+	s_u32VehicleTestGateStartMs = now_ms;
+
+	display_delta = (speed_delta >= rpm_delta) ? speed_delta : rpm_delta;
+	s_u32VehicleTestFreqX100 =
+		(uint32_t)((((uint64_t)display_delta * 100000u) + (elapsed_ms / 2u)) /
+				   elapsed_ms);
+	if (s_u32VehicleTestFreqX100 > 999999u)
+	{
+		s_u32VehicleTestFreqX100 = 999999u;
+	}
+}
+
 static void App_Vehicle_ShowMileage(void)
 {
+#if (APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO != 0u)
+	LedPanel_Set(LedPanelIdOdo, TRUE);
+	(void)LedPanel_ShowTotalOdometer(s_u32VehicleTestFreqX100);
+#else
 	LedPanel_Set(s_bVehicleMileageTripDisplay ? LedPanelIdTrip : LedPanelIdOdo, TRUE);
 
 	if (TRUE == s_bVehicleMileageTripDisplay)
@@ -248,6 +527,7 @@ static void App_Vehicle_ShowMileage(void)
 		}
 		(void)LedPanel_ShowTotalOdometer(display_val);
 	}
+#endif
 }
 
 static void App_Vehicle_UpdateClockCache(void)
@@ -304,12 +584,14 @@ static uint16_t App_Vehicle_GetCurrentSpeed(void)
 	uint32_t denominator;
 	uint32_t speed;
 
-	if (FALSE == DEV_SpeedRpm_IsValid(DevSpeedRpmIdSpeed))
+	if (FALSE == DEV_SpeedRpm_IsValidByMeasure(DevSpeedRpmIdSpeed,
+											   APP_VEHICLE_FREQ_MEASURE))
 	{
 		return 0u;
 	}
 
-	freq_mhz = DEV_SpeedRpm_GetFreqMilliHz(DevSpeedRpmIdSpeed);
+	freq_mhz = DEV_SpeedRpm_GetFreqMilliHzByMeasure(DevSpeedRpmIdSpeed,
+													APP_VEHICLE_FREQ_MEASURE);
 	denominator = APP_VEHICLE_SPEED_PULSES_PER_KM * APP_VEHICLE_MILLIHZ_PER_HZ;
 	speed = ((uint64_t)freq_mhz * 3600u + (denominator / 2u)) / denominator;
 
@@ -318,7 +600,10 @@ static uint16_t App_Vehicle_GetCurrentSpeed(void)
 		speed = 199u;
 	}
 
-	return (uint16_t)speed;
+	return App_Vehicle_ConfirmDisplayU16((uint16_t)speed, &s_u16VehicleDisplaySpeed,
+										 &s_u16VehicleSpeedCandidate,
+										 &s_u8VehicleSpeedCandidateTicks,
+										 &s_bVehicleSpeedDisplayInited);
 }
 
 static uint32_t App_Vehicle_GetCurrentEngineRpm(void)
@@ -326,12 +611,14 @@ static uint32_t App_Vehicle_GetCurrentEngineRpm(void)
 	uint32_t freq_mhz;
 	uint32_t denominator;
 
-	if (FALSE == DEV_SpeedRpm_IsValid(DevSpeedRpmIdRpm))
+	if (FALSE == DEV_SpeedRpm_IsValidByMeasure(DevSpeedRpmIdRpm,
+											   APP_VEHICLE_FREQ_MEASURE))
 	{
 		return 0u;
 	}
 
-	freq_mhz = DEV_SpeedRpm_GetFreqMilliHz(DevSpeedRpmIdRpm);
+	freq_mhz = DEV_SpeedRpm_GetFreqMilliHzByMeasure(DevSpeedRpmIdRpm,
+													APP_VEHICLE_FREQ_MEASURE);
 	denominator = APP_VEHICLE_MILLIHZ_PER_HZ * APP_VEHICLE_RPM_RATIO_DENOMINATOR *
 				  APP_VEHICLE_HALL_POLE_PAIRS;
 
@@ -352,7 +639,10 @@ static uint8_t App_Vehicle_GetCurrentRpmBarCount(void)
 		bar_count = LED_PANEL_RPM_BAR_COUNT;
 	}
 
-	return (uint8_t)bar_count;
+	return App_Vehicle_ConfirmDisplayU8((uint8_t)bar_count, &s_u8VehicleDisplayRpmBars,
+										&s_u8VehicleRpmBarsCandidate,
+										&s_u8VehicleRpmBarsCandidateTicks,
+										&s_bVehicleRpmBarsDisplayInited);
 }
 
 static uint8_t App_Vehicle_GetCurrentGear(void)
@@ -565,25 +855,93 @@ static void App_Vehicle_ShowIndicators(void)
 static void App_Vehicle_ShowSelfCheckFrame(uint16_t tick)
 {
 	uint8_t digit;
-	uint8_t step;
-	uint8_t progress;
 	uint8_t rpm_bar_count;
 	uint8_t fuel_bar_count;
 	uint32_t odo_value;
+	uint16_t phase_tick;
 
-	step = App_Vehicle_GetSelfCheckStep(tick);
-	digit = App_Vehicle_GetSelfCheckDigit(step);
-	progress = (uint8_t)(((uint32_t)(tick + 1u) * 100u) / APP_VEHICLE_SELF_CHECK_TICKS);
-	rpm_bar_count =
-		(uint8_t)(((uint16_t)progress * LED_PANEL_RPM_BAR_COUNT + 99u) / 100u);
-	fuel_bar_count =
-		(uint8_t)(((uint16_t)progress * LED_PANEL_FUEL_BAR_COUNT + 99u) / 100u);
-	odo_value = (uint32_t)digit * 11111u;
+	if (tick < APP_VEHICLE_SELF_CHECK_ALL_SEG_TICKS)
+	{
+		App_Vehicle_ShowSelfCheckAllSegments();
+		return;
+	}
+
+	phase_tick = (uint16_t)(tick - APP_VEHICLE_SELF_CHECK_ALL_SEG_TICKS);
+	if (phase_tick < APP_VEHICLE_SELF_CHECK_SETUP_TICKS)
+	{
+		LedPanel_Clear();
+		LedPanel_SetBorder(TRUE);
+		LedPanel_ShowRpmBars(LED_PANEL_RPM_BAR_COUNT);
+		App_Vehicle_ShowSelfCheckSpeedRaw(0u, 0u, FALSE);
+		LedPanel_Refresh();
+		return;
+	}
+
+	phase_tick = (uint16_t)(phase_tick - APP_VEHICLE_SELF_CHECK_SETUP_TICKS);
+	if (phase_tick < APP_VEHICLE_SELF_CHECK_RPM_DOWN_TICKS)
+	{
+		rpm_bar_count = (uint8_t)(LED_PANEL_RPM_BAR_COUNT -
+								  (((uint32_t)phase_tick *
+									(LED_PANEL_RPM_BAR_COUNT - 1u)) /
+								   (APP_VEHICLE_SELF_CHECK_RPM_DOWN_TICKS - 1u)));
+
+		LedPanel_Clear();
+		LedPanel_SetBorder(TRUE);
+		LedPanel_ShowRpmBars(rpm_bar_count);
+		if (phase_tick < (9u * APP_VEHICLE_SELF_CHECK_SPEED_DIGIT_TICKS))
+		{
+			digit = (uint8_t)((phase_tick / APP_VEHICLE_SELF_CHECK_SPEED_DIGIT_TICKS) +
+							  1u);
+			App_Vehicle_ShowSelfCheckSpeedRaw(digit, digit, FALSE);
+		}
+		else
+		{
+			App_Vehicle_ShowSelfCheckSpeedSweep(
+				(uint16_t)(phase_tick -
+						   (9u * APP_VEHICLE_SELF_CHECK_SPEED_DIGIT_TICKS)));
+		}
+		LedPanel_Refresh();
+		return;
+	}
+
+	phase_tick = (uint16_t)(phase_tick - APP_VEHICLE_SELF_CHECK_RPM_DOWN_TICKS);
+	if (phase_tick < APP_VEHICLE_SELF_CHECK_FULL_ON_TICKS)
+	{
+		LedPanel_Fill();
+		LedPanel_ShowClock(0u, 0u);
+		LedPanel_ShowGearDigit(0u);
+		App_Vehicle_ShowSelfCheckSpeedRaw(0u, 0u, TRUE);
+		LedPanel_ShowOdometer(0u, 0u);
+		LedPanel_ShowRpmBars(1u);
+		LedPanel_ShowFuelBars(0u);
+		LedPanel_Refresh();
+		return;
+	}
+
+	phase_tick = (uint16_t)(phase_tick - APP_VEHICLE_SELF_CHECK_FULL_ON_TICKS);
+	if (phase_tick >= APP_VEHICLE_SELF_CHECK_RAMP_UP_TICKS)
+	{
+		phase_tick = (uint16_t)(APP_VEHICLE_SELF_CHECK_RAMP_UP_TICKS - 1u);
+	}
 
 	LedPanel_Fill();
+	digit = (uint8_t)(((uint32_t)phase_tick * 10u) /
+					  APP_VEHICLE_SELF_CHECK_RAMP_UP_TICKS);
+	if (digit > 9u)
+	{
+		digit = 9u;
+	}
+	rpm_bar_count =
+		(uint8_t)(1u + (((uint32_t)phase_tick * (LED_PANEL_RPM_BAR_COUNT - 1u)) /
+						(APP_VEHICLE_SELF_CHECK_RAMP_UP_TICKS - 1u)));
+	fuel_bar_count =
+		(uint8_t)(((uint32_t)phase_tick * LED_PANEL_FUEL_BAR_COUNT) /
+				  (APP_VEHICLE_SELF_CHECK_RAMP_UP_TICKS - 1u));
+	odo_value = (uint32_t)digit * 11111u;
+
 	LedPanel_ShowClock((uint8_t)(digit * 11u), (uint8_t)(digit * 11u));
 	LedPanel_ShowGearDigit(digit);
-	LedPanel_ShowSpeed(App_Vehicle_GetSelfCheckSpeed(step));
+	App_Vehicle_ShowSelfCheckSpeedRaw(digit, digit, TRUE);
 	LedPanel_ShowOdometer(odo_value, digit);
 	LedPanel_ShowRpmBars(rpm_bar_count);
 	LedPanel_ShowFuelBars(fuel_bar_count);
@@ -593,7 +951,11 @@ static void App_Vehicle_ShowSelfCheckFrame(uint16_t tick)
 static void App_Vehicle_ShowNormalFrame(void)
 {
 	App_Vehicle_UpdateGearBlink();
+#if (APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO == 0u)
 	App_Vehicle_UpdateMileage();
+#else
+	App_Vehicle_UpdateTestFreqX100();
+#endif
 
 	LedPanel_Clear();
 	LedPanel_SetBorder(TRUE);
@@ -631,6 +993,19 @@ void App_Vehicle_ResetSelfCheck(void)
 	s_u16VehicleFuelSlowTick = 0u;
 	s_u8VehicleGearBlinkTick = 0u;
 	s_bVehicleGearBlinkOn = TRUE;
+	s_u16VehicleDisplaySpeed = 0u;
+	s_u16VehicleSpeedCandidate = 0u;
+	s_u8VehicleSpeedCandidateTicks = 0u;
+	s_bVehicleSpeedDisplayInited = FALSE;
+	s_u8VehicleDisplayRpmBars = 0u;
+	s_u8VehicleRpmBarsCandidate = 0u;
+	s_u8VehicleRpmBarsCandidateTicks = 0u;
+	s_bVehicleRpmBarsDisplayInited = FALSE;
+	s_u32VehicleTestLastSpeedPulseCount = DEV_SpeedRpm_GetPulseCount(DevSpeedRpmIdSpeed);
+	s_u32VehicleTestLastRpmPulseCount = DEV_SpeedRpm_GetPulseCount(DevSpeedRpmIdRpm);
+	s_u32VehicleTestGateStartMs = BSP_SYS_GetTickMs();
+	s_u32VehicleTestFreqX100 = 0u;
+	s_bVehicleTestGateInited = FALSE;
 	s_bVehicleClockValid = FALSE;
 	App_Vehicle_LoadMileage();
 	App_Vehicle_UpdateClockCache();
