@@ -127,6 +127,18 @@ static const stc_bsp_gpio_pin_cfg_t s_astBspGpioPinCfg[BspGpioIdCount] = {
 						   .pu = GpioPuDisable,
 						   .pd = GpioPdDisable,
 						   .init_level = FALSE},
+	[BspGpioIdEepromScl] = {.port = GpioPortB,
+							.pin = GpioPin6,
+							.dir = BspGpioDirOut,
+							.pu = GpioPuDisable,
+							.pd = GpioPdDisable,
+							.init_level = TRUE},
+	[BspGpioIdEepromSda] = {.port = GpioPortB,
+							.pin = GpioPin7,
+							.dir = BspGpioDirOut,
+							.pu = GpioPuDisable,
+							.pd = GpioPdDisable,
+							.init_level = TRUE},
 };
 
 static const stc_bsp_gpio_nc_pin_cfg_t s_astBspGpioNcPinCfg[] = {
@@ -138,7 +150,8 @@ static const en_bsp_gpio_id_t s_aBspGpioSleepPinIds[] = {
 	BspGpioIdLeftTurn,	 BspGpioIdHighBeam, BspGpioIdRightTurn,	  BspGpioIdPositionLamp,
 	BspGpioIdPhotoDetec, BspGpioIdSwK1,		BspGpioIdSwK2,		  BspGpioIdGearN,
 	BspGpioIdGear1,		 BspGpioIdGear2,	BspGpioIdGear3,		  BspGpioIdGear4,
-	BspGpioIdGear5,		 BspGpioIdGear6,	BspGpioIdEnginefault,
+	BspGpioIdGear5,		 BspGpioIdGear6,	BspGpioIdEnginefault, BspGpioIdEepromScl,
+	BspGpioIdEepromSda,
 };
 
 static const en_bsp_gpio_id_t s_aBspGpioSleepDefaultOutputIds[] = {

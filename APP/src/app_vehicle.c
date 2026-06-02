@@ -64,7 +64,6 @@ static uint32_t s_u32VehicleMileagePulseRemainder = 0u;
 static uint32_t s_u32VehicleTotalTenthsKm = 0u;
 static uint16_t s_u16VehicleTripTenthsKm = 0u;
 static boolean_t s_bVehicleUnitImperial = FALSE;
-static uint8_t s_u8VehicleMileageSaveCounter = 0u;
 static boolean_t s_bVehicleFuelInited = FALSE;
 static uint8_t s_u8VehicleFuelDisplayBars = 0u;
 static uint16_t s_u16VehicleFuelFastTick = 0u;
@@ -220,7 +219,7 @@ static uint16_t App_Vehicle_ConfirmDisplayU16(uint16_t sample, uint16_t *display
 		return *display;
 	}
 
-	/* 采样为 0 时立刻回零，不逐格递减 */
+	/* Return to zero immediately when sample is 0. */
 	if (0u == sample)
 	{
 		*display = 0u;
@@ -288,7 +287,7 @@ static uint8_t App_Vehicle_ConfirmDisplayU8(uint8_t sample, uint8_t *display,
 		return *display;
 	}
 
-	/* 采样为 0 时立刻回零，不逐格递减 */
+	/* Return to zero immediately when sample is 0. */
 	if (0u == sample)
 	{
 		*display = 0u;
@@ -358,176 +357,52 @@ static uint16_t App_Vehicle_MapSpeed(uint16_t speed)
 	return s_astVehicleSpeedMap[ARRAY_SZ(s_astVehicleSpeedMap) - 1u].output;
 }
 
-static uint8_t App_Vehicle_CalcOdoChecksum(const uint8_t *data, uint8_t len)
-{
-	uint8_t chk = 0u;
-	uint8_t i;
-
-	for (i = 0u; i < len; i++)
-	{
-		chk ^= data[i];
-	}
-
-	return chk;
-}
-
 static void App_Vehicle_SaveMileage(void)
 {
-	uint8_t buf[8];
-	uint8_t chk;
+	stc_drv_eeprom_mileage_t mileage;
 
-	// 打包数据 (大端序)
-	buf[0] = (uint8_t)(s_u32VehicleTotalTenthsKm >> 24);
-	buf[1] = (uint8_t)(s_u32VehicleTotalTenthsKm >> 16);
-	buf[2] = (uint8_t)(s_u32VehicleTotalTenthsKm >> 8);
-	buf[3] = (uint8_t)s_u32VehicleTotalTenthsKm;
-	buf[4] = (uint8_t)(s_u16VehicleTripTenthsKm >> 8);
-	buf[5] = (uint8_t)s_u16VehicleTripTenthsKm;
-	buf[6] = (TRUE == s_bVehicleUnitImperial) ? 1u : 0u;
-	buf[7] = (TRUE == s_bVehicleMileageTripDisplay) ? 1u : 0u;
+	mileage.total_tenths_km = s_u32VehicleTotalTenthsKm;
+	mileage.trip_tenths_km = s_u16VehicleTripTenthsKm;
+	mileage.unit_imperial = (TRUE == s_bVehicleUnitImperial) ? 1u : 0u;
+	mileage.display_trip = (TRUE == s_bVehicleMileageTripDisplay) ? 1u : 0u;
 
-	chk = App_Vehicle_CalcOdoChecksum(buf, 8u);
-
-	// 主区写入 (0x00~0x08)
-	EEPROM_WriteByte(0x00, buf[0]);
-	EEPROM_WriteByte(0x01, buf[1]);
-	EEPROM_WriteByte(0x02, buf[2]);
-	EEPROM_WriteByte(0x03, buf[3]);
-	EEPROM_WriteByte(0x04, buf[4]);
-	EEPROM_WriteByte(0x05, buf[5]);
-	EEPROM_WriteByte(0x06, buf[6]);
-	EEPROM_WriteByte(0x07, buf[7]);
-	EEPROM_WriteByte(0x08, chk);
-
-	// 备份区写入 (每10次，约每1km)
-	s_u8VehicleMileageSaveCounter++;
-	if (s_u8VehicleMileageSaveCounter >= 10u)
-	{
-		s_u8VehicleMileageSaveCounter = 0u;
-		EEPROM_WriteByte(0x09, buf[0]);
-		EEPROM_WriteByte(0x0A, buf[1]);
-		EEPROM_WriteByte(0x0B, buf[2]);
-		EEPROM_WriteByte(0x0C, buf[3]);
-		EEPROM_WriteByte(0x0D, buf[4]);
-		EEPROM_WriteByte(0x0E, buf[5]);
-		EEPROM_WriteByte(0x0F, buf[6]);
-		EEPROM_WriteByte(0x10, buf[7]);
-		EEPROM_WriteByte(0x11, chk);
-	}
+	(void)DRV_EEPROM_SaveMileage(&mileage);
 }
 
 static void App_Vehicle_LoadMileage(void)
 {
-	uint8_t buf[8];
-	uint8_t chk;
-	uint32_t temp_total;
-	uint16_t temp_trip;
+	stc_drv_eeprom_mileage_t mileage;
+	int load_status;
 
 	if (TRUE == s_bVehicleMileageLoaded)
 	{
 		return;
 	}
 
-	// --- 1. 尝试主区 (0x00~0x08) ---
-	buf[0] = EEPROM_ReadByte(0x00);
-	buf[1] = EEPROM_ReadByte(0x01);
-	buf[2] = EEPROM_ReadByte(0x02);
-	buf[3] = EEPROM_ReadByte(0x03);
-	buf[4] = EEPROM_ReadByte(0x04);
-	buf[5] = EEPROM_ReadByte(0x05);
-	buf[6] = EEPROM_ReadByte(0x06);
-	buf[7] = EEPROM_ReadByte(0x07);
-	chk = EEPROM_ReadByte(0x08);
-
-	temp_total  = ((uint32_t)buf[0] << 24);
-	temp_total |= ((uint32_t)buf[1] << 16);
-	temp_total |= ((uint32_t)buf[2] << 8);
-	temp_total |= buf[3];
-	temp_trip   = ((uint16_t)buf[4] << 8) | buf[5];
-
-	if (temp_total <= APP_VEHICLE_TOTAL_MAX_TENTHS &&
-		temp_trip <= APP_VEHICLE_TRIP_MAX_TENTHS &&
-		chk == App_Vehicle_CalcOdoChecksum(buf, 8u))
+	load_status = DRV_EEPROM_LoadMileage(&mileage);
+	if (((DRV_EEPROM_LOAD_VALID == load_status) ||
+		 (DRV_EEPROM_LOAD_LEGACY == load_status)) &&
+		(mileage.total_tenths_km <= APP_VEHICLE_TOTAL_MAX_TENTHS) &&
+		(mileage.trip_tenths_km <= APP_VEHICLE_TRIP_MAX_TENTHS))
 	{
-		s_u32VehicleTotalTenthsKm = temp_total;
-		s_u16VehicleTripTenthsKm = temp_trip;
-		s_bVehicleUnitImperial = (buf[6] != 0u) ? TRUE : FALSE;
-		s_bVehicleMileageTripDisplay = (buf[7] != 0u) ? TRUE : FALSE;
+		s_u32VehicleTotalTenthsKm = mileage.total_tenths_km;
+		s_u16VehicleTripTenthsKm = mileage.trip_tenths_km;
+		s_bVehicleUnitImperial = (mileage.unit_imperial != 0u) ? TRUE : FALSE;
+		s_bVehicleMileageTripDisplay = (mileage.display_trip != 0u) ? TRUE : FALSE;
+		if (DRV_EEPROM_LOAD_LEGACY == load_status)
+		{
+			App_Vehicle_SaveMileage();
+		}
 		s_u32VehicleMileagePulseRemainder = 0u;
 		s_u32VehicleMileageLastPulseCount = DEV_SpeedRpm_GetPulseCount(DevSpeedRpmIdSpeed);
 		s_bVehicleMileageLoaded = TRUE;
 		return;
 	}
 
-	// --- 2. 主区校验失败，尝试备份区 (0x09~0x11) ---
-	buf[0] = EEPROM_ReadByte(0x09);
-	buf[1] = EEPROM_ReadByte(0x0A);
-	buf[2] = EEPROM_ReadByte(0x0B);
-	buf[3] = EEPROM_ReadByte(0x0C);
-	buf[4] = EEPROM_ReadByte(0x0D);
-	buf[5] = EEPROM_ReadByte(0x0E);
-	buf[6] = EEPROM_ReadByte(0x0F);
-	buf[7] = EEPROM_ReadByte(0x10);
-	chk = EEPROM_ReadByte(0x11);
-
-	temp_total  = ((uint32_t)buf[0] << 24);
-	temp_total |= ((uint32_t)buf[1] << 16);
-	temp_total |= ((uint32_t)buf[2] << 8);
-	temp_total |= buf[3];
-	temp_trip   = ((uint16_t)buf[4] << 8) | buf[5];
-
-	if (temp_total <= APP_VEHICLE_TOTAL_MAX_TENTHS &&
-		temp_trip <= APP_VEHICLE_TRIP_MAX_TENTHS &&
-		chk == App_Vehicle_CalcOdoChecksum(buf, 8u))
-	{
-		s_u32VehicleTotalTenthsKm = temp_total;
-		s_u16VehicleTripTenthsKm = temp_trip;
-		s_bVehicleUnitImperial = (buf[6] != 0u) ? TRUE : FALSE;
-		s_bVehicleMileageTripDisplay = (buf[7] != 0u) ? TRUE : FALSE;
-		s_u8VehicleMileageSaveCounter = 0u;
-		App_Vehicle_SaveMileage(); // 用备份修复主区
-		s_u32VehicleMileagePulseRemainder = 0u;
-		s_u32VehicleMileageLastPulseCount = DEV_SpeedRpm_GetPulseCount(DevSpeedRpmIdSpeed);
-		s_bVehicleMileageLoaded = TRUE;
-		return;
-	}
-
-	// --- 3. 新旧固件兼容：直接读主区数据，不做校验 ---
-	buf[0] = EEPROM_ReadByte(0x00);
-	buf[1] = EEPROM_ReadByte(0x01);
-	buf[2] = EEPROM_ReadByte(0x02);
-	buf[3] = EEPROM_ReadByte(0x03);
-	buf[4] = EEPROM_ReadByte(0x04);
-	buf[5] = EEPROM_ReadByte(0x05);
-	buf[6] = EEPROM_ReadByte(0x06);
-	buf[7] = EEPROM_ReadByte(0x07);
-
-	temp_total  = ((uint32_t)buf[0] << 24);
-	temp_total |= ((uint32_t)buf[1] << 16);
-	temp_total |= ((uint32_t)buf[2] << 8);
-	temp_total |= buf[3];
-	temp_trip   = ((uint16_t)buf[4] << 8) | buf[5];
-
-	if (temp_total != 0xFFFFFFFFu && temp_total <= APP_VEHICLE_TOTAL_MAX_TENTHS)
-	{
-		s_u32VehicleTotalTenthsKm = temp_total;
-		s_u16VehicleTripTenthsKm = (temp_trip <= APP_VEHICLE_TRIP_MAX_TENTHS) ? temp_trip : 0u;
-		s_bVehicleUnitImperial = (buf[6] <= 1u) ? ((buf[6] != 0u) ? TRUE : FALSE) : FALSE;
-		s_bVehicleMileageTripDisplay = (buf[7] <= 1u) ? ((buf[7] != 0u) ? TRUE : FALSE) : FALSE;
-		s_u8VehicleMileageSaveCounter = 0u;
-		App_Vehicle_SaveMileage(); // 迁移到带校验的新格式
-		s_u32VehicleMileagePulseRemainder = 0u;
-		s_u32VehicleMileageLastPulseCount = DEV_SpeedRpm_GetPulseCount(DevSpeedRpmIdSpeed);
-		s_bVehicleMileageLoaded = TRUE;
-		return;
-	}
-
-	// --- 4. 全部无效，初始化为 0 ---
 	s_u32VehicleTotalTenthsKm = 0u;
 	s_u16VehicleTripTenthsKm = 0u;
 	s_bVehicleUnitImperial = FALSE;
 	s_bVehicleMileageTripDisplay = FALSE;
-	s_u8VehicleMileageSaveCounter = 0u;
 	App_Vehicle_SaveMileage();
 	s_u32VehicleMileagePulseRemainder = 0u;
 	s_u32VehicleMileageLastPulseCount = DEV_SpeedRpm_GetPulseCount(DevSpeedRpmIdSpeed);

@@ -1,6 +1,5 @@
 #include "app_vehicle.h"
 #include "bsp_gpio.h"
-#include "bsp_iic.h"
 #include "bsp_lpm.h"
 #include "bsp_sys.h"
 #include "bsp_time_capture.h"
@@ -8,6 +7,7 @@
 #include "dev_speed_rpm.h"
 #include "drv_adc.h"
 #include "drv_button.h"
+#include "drv_eeprom.h"
 #include "drv_input.h"
 #include "drv_rtc.h"
 #include "led_panel.h"
@@ -101,6 +101,7 @@ int32_t main(void)
 				BSP_WDT_Feed();
 
 				Bsp_Gpio_Init();
+				(void)DRV_EEPROM_Init();
 				DRV_ADC_Wakeup();
 
 				if (rtc_time_500ms_flag == 1u)
@@ -134,7 +135,7 @@ void sys_init(void)
 {
 	BSP_SysTick_Init();
 	(void)Bsp_Gpio_Init();
-	EEPROM_IIC_Init();
+	(void)DRV_EEPROM_Init();
 	(void)DRV_Input_Init();
 	DRV_Button_Init();
 	(void)DRV_RTC_Init(12, 0); // 明确忽略返回值
