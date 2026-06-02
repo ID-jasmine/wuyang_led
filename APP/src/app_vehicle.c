@@ -40,7 +40,8 @@
 #define APP_VEHICLE_TOTAL_MAX_TENTHS		   (9999990u)
 #define APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO (0u)
 #define APP_VEHICLE_FREQ_MEASURE			   DevSpeedRpmMeasureGate
-#define APP_VEHICLE_BRIGHTNESS_DARK_RAW		   (372u)
+#define APP_VEHICLE_BRIGHTNESS_DARK_RAW		   (819u)
+#define APP_VEHICLE_BRIGHTNESS_BRIGHT_RAW	   (3276u)
 #define APP_VEHICLE_BRIGHTNESS_MIN			   (15u)
 #define APP_VEHICLE_BRIGHTNESS_MAX			   (50u)
 
@@ -781,19 +782,20 @@ static void App_Vehicle_UpdateBrightness(void)
 	{
 		brightness = APP_VEHICLE_BRIGHTNESS_MIN;
 	}
+	else if (raw >= APP_VEHICLE_BRIGHTNESS_BRIGHT_RAW)
+	{
+		brightness = APP_VEHICLE_BRIGHTNESS_MAX;
+	}
 	else
 	{
-		span = (uint32_t)APP_VEHICLE_ADC_FULL_SCALE - APP_VEHICLE_BRIGHTNESS_DARK_RAW;
+		span =
+			(uint32_t)APP_VEHICLE_BRIGHTNESS_BRIGHT_RAW - APP_VEHICLE_BRIGHTNESS_DARK_RAW;
 		offset = (uint32_t)raw - APP_VEHICLE_BRIGHTNESS_DARK_RAW;
 		brightness = (uint8_t)(APP_VEHICLE_BRIGHTNESS_MIN +
 							   ((offset *
 								 (APP_VEHICLE_BRIGHTNESS_MAX - APP_VEHICLE_BRIGHTNESS_MIN) +
 								 (span / 2u)) /
 								span));
-		if (brightness > APP_VEHICLE_BRIGHTNESS_MAX)
-		{
-			brightness = APP_VEHICLE_BRIGHTNESS_MAX;
-		}
 	}
 
 	if (brightness != s_u8VehicleBrightnessPercent)
