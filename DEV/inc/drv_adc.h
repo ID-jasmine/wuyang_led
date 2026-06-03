@@ -16,6 +16,9 @@ extern "C"
 	void DRV_ADC_Task10ms(void);
 	boolean_t DRV_ADC_IsReady(void);
 	boolean_t DRV_ADC_IsIgnActive(void);
+	boolean_t DRV_ADC_IsLeftTurnActive(void);
+	boolean_t DRV_ADC_IsRightTurnActive(void);
+	boolean_t DRV_ADC_IsHighBeamActive(void);
 	uint16_t DRV_ADC_GetAvg(en_bsp_adc_id_t id);
 	uint16_t DRV_ADC_GetResistanceOhm(en_bsp_adc_id_t id);
 	void DRV_ADC_DeInit(void);

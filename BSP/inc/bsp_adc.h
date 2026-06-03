@@ -15,6 +15,9 @@ extern "C"
 		BspAdcIdWaterTemp,
 		BspAdcIdIgn,
 		BspAdcIdZmIn,
+		BspAdcIdLeftTurn,
+		BspAdcIdHighBeam,
+		BspAdcIdRightTurn,
 		BspAdcIdCount,
 	} en_bsp_adc_id_t;
 

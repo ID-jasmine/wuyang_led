@@ -12,9 +12,16 @@
 	(((uint32_t)DRV_ADC_IGN_ON_MV * DRV_ADC_FULL_SCALE + (DRV_ADC_REF_MV - 1u)) /        \
 	 DRV_ADC_REF_MV)
 #define DRV_ADC_IGN_ON_MS (300u)
+#define DRV_ADC_SWITCH_ON_MV (1638u)
+#define DRV_ADC_SWITCH_ON_RAW                                                            \
+	(((uint32_t)DRV_ADC_SWITCH_ON_MV * DRV_ADC_FULL_SCALE + (DRV_ADC_REF_MV - 1u)) /     \
+	 DRV_ADC_REF_MV)
+#define DRV_ADC_SWITCH_ON_MS (50u)
 
 static uint16_t s_au16DrvAdcAvg[BspAdcIdCount];
 static uint32_t s_au32DrvAdcSum[BspAdcIdCount];
+static uint16_t s_au16DrvAdcSwitchOnCnt[BspAdcIdCount];
+static boolean_t s_abDrvAdcSwitchActive[BspAdcIdCount];
 static uint8_t s_u8DrvAdcSampleCount = 0u;
 static boolean_t s_bDrvAdcReady = FALSE;
 static boolean_t s_bDrvAdcInited = FALSE;
@@ -34,6 +41,14 @@ static en_result_t DrvAdc_CheckId(en_bsp_adc_id_t id)
 static boolean_t DrvAdc_IsResistanceSensorId(en_bsp_adc_id_t id)
 {
 	return ((BspAdcIdFuel == id) || (BspAdcIdWaterTemp == id)) ? TRUE : FALSE;
+}
+
+static boolean_t DrvAdc_IsSwitchSensorId(en_bsp_adc_id_t id)
+{
+	return ((BspAdcIdLeftTurn == id) || (BspAdcIdHighBeam == id) ||
+			(BspAdcIdRightTurn == id))
+			   ? TRUE
+			   : FALSE;
 }
 
 static void DrvAdc_StartAndWait(void)
@@ -63,6 +78,32 @@ static void DrvAdc_UpdateIgnState(uint16_t raw)
 	}
 }
 
+static void DrvAdc_UpdateSwitchState(en_bsp_adc_id_t id, uint16_t raw)
+{
+	if (FALSE == DrvAdc_IsSwitchSensorId(id))
+	{
+		return;
+	}
+
+	if (raw >= DRV_ADC_SWITCH_ON_RAW)
+	{
+		if (s_au16DrvAdcSwitchOnCnt[id] < DRV_ADC_SWITCH_ON_MS)
+		{
+			s_au16DrvAdcSwitchOnCnt[id]++;
+		}
+
+		if (s_au16DrvAdcSwitchOnCnt[id] >= DRV_ADC_SWITCH_ON_MS)
+		{
+			s_abDrvAdcSwitchActive[id] = TRUE;
+		}
+	}
+	else
+	{
+		s_au16DrvAdcSwitchOnCnt[id] = 0u;
+		s_abDrvAdcSwitchActive[id] = FALSE;
+	}
+}
+
 /**
  * @brief 初始化 ADC 驱动。
  *
@@ -76,6 +117,8 @@ void DRV_ADC_Init(void)
 	{
 		s_au16DrvAdcAvg[i] = 0u;
 		s_au32DrvAdcSum[i] = 0u;
+		s_au16DrvAdcSwitchOnCnt[i] = 0u;
+		s_abDrvAdcSwitchActive[i] = FALSE;
 	}
 	s_u8DrvAdcSampleCount = 0u;
 	s_bDrvAdcReady = FALSE;
@@ -109,6 +152,9 @@ void DRV_ADC_Task1ms(void)
 	}
 
 	DrvAdc_UpdateIgnState(BSP_ADC_GetResult(BspAdcIdIgn));
+	DrvAdc_UpdateSwitchState(BspAdcIdLeftTurn, BSP_ADC_GetResult(BspAdcIdLeftTurn));
+	DrvAdc_UpdateSwitchState(BspAdcIdHighBeam, BSP_ADC_GetResult(BspAdcIdHighBeam));
+	DrvAdc_UpdateSwitchState(BspAdcIdRightTurn, BSP_ADC_GetResult(BspAdcIdRightTurn));
 
 	if (s_u8DrvAdcSampleCount < DRV_ADC_SAMPLE_COUNT)
 	{
@@ -178,6 +224,21 @@ boolean_t DRV_ADC_IsIgnActive(void)
 	return s_bDrvAdcIgnActive;
 }
 
+boolean_t DRV_ADC_IsLeftTurnActive(void)
+{
+	return s_abDrvAdcSwitchActive[BspAdcIdLeftTurn];
+}
+
+boolean_t DRV_ADC_IsRightTurnActive(void)
+{
+	return s_abDrvAdcSwitchActive[BspAdcIdRightTurn];
+}
+
+boolean_t DRV_ADC_IsHighBeamActive(void)
+{
+	return s_abDrvAdcSwitchActive[BspAdcIdHighBeam];
+}
+
 /**
  * @brief 获取指定 ADC 通道的平均值。
  * @param id ADC 通道 ID。
@@ -231,9 +292,16 @@ uint16_t DRV_ADC_GetResistanceOhm(en_bsp_adc_id_t id)
  */
 void DRV_ADC_DeInit(void)
 {
+	uint8_t i;
+
 	s_bDrvAdcInited = FALSE;
 	s_u16DrvAdcIgnOnCnt = 0u;
 	s_bDrvAdcIgnActive = FALSE;
+	for (i = 0u; i < BspAdcIdCount; i++)
+	{
+		s_au16DrvAdcSwitchOnCnt[i] = 0u;
+		s_abDrvAdcSwitchActive[i] = FALSE;
+	}
 	BSP_ADC_DeInit();
 }
 

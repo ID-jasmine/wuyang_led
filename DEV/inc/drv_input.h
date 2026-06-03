@@ -10,10 +10,7 @@ extern "C"
 
 	typedef enum en_drv_input_id
 	{
-		DrvInputIdLeftTurn = 0u,
-		DrvInputIdHighBeam,
-		DrvInputIdRightTurn,
-		DrvInputIdPositionLamp,
+		DrvInputIdPositionLamp = 0u,
 		DrvInputIdGearN,
 		DrvInputIdGear1,
 		DrvInputIdGear2,

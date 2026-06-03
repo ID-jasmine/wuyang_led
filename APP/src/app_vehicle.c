@@ -31,7 +31,7 @@
 #define APP_VEHICLE_GEAR_BLINK_TICKS			 (5u)
 #define APP_VEHICLE_FUEL_FAST_TICKS				 (30u)
 #define APP_VEHICLE_FUEL_SLOW_TICKS				 (300u)
-#define APP_VEHICLE_FUEL_INVALID_BARS			 (0u)
+#define APP_VEHICLE_FUEL_INVALID_BARS			 (1u)
 #define APP_VEHICLE_FUEL_RES_CORRECT_NUMERATOR	 (94u)
 #define APP_VEHICLE_FUEL_RES_CORRECT_DENOMINATOR (100u)
 #define APP_VEHICLE_ODOMETER_PULSES_PER_KM		 (2800u)
@@ -908,9 +908,9 @@ static void App_Vehicle_ShowFuel(void)
 
 static void App_Vehicle_ShowIndicators(void)
 {
-	LedPanel_Set(LedPanelIdLeftTurn, DRV_Input_IsActive(DrvInputIdLeftTurn));
-	LedPanel_Set(LedPanelIdRightTurn, DRV_Input_IsActive(DrvInputIdRightTurn));
-	LedPanel_Set(LedPanelIdHighBeam, DRV_Input_IsActive(DrvInputIdHighBeam));
+	LedPanel_Set(LedPanelIdLeftTurn, DRV_ADC_IsLeftTurnActive());
+	LedPanel_Set(LedPanelIdRightTurn, DRV_ADC_IsRightTurnActive());
+	LedPanel_Set(LedPanelIdHighBeam, DRV_ADC_IsHighBeamActive());
 	LedPanel_Set(LedPanelIdEngineFault, DRV_Input_IsActive(DrvInputIdEnginefault));
 	LedPanel_Set(LedPanelIdBatteryFault, FALSE);
 }

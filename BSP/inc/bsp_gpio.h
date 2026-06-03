@@ -10,13 +10,8 @@ extern "C"
 
 	typedef enum
 	{
-		BspGpioIdIgn = 0u,
-		BspGpioIdPower,
-		BspGpioIdLeftTurn,
-		BspGpioIdHighBeam,
-		BspGpioIdRightTurn,
+		BspGpioIdPower = 0u,
 		BspGpioIdPositionLamp,
-		BspGpioIdPhotoDetec,
 		BspGpioIdSwK1,
 		BspGpioIdSwK2,
 		BspGpioIdGearN,

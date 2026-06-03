@@ -12,11 +12,54 @@ typedef struct stc_bsp_adc_channel_cfg
 } stc_bsp_adc_channel_cfg_t;
 
 static const stc_bsp_adc_channel_cfg_t s_astBspAdcChannelCfg[BspAdcIdCount] = {
-	[BspAdcIdFuel] = {.port = GpioPortA, .pin = GpioPin1, .adc_ch = AdcExInputCH1},
-	[BspAdcIdAdPower] = {.port = GpioPortA, .pin = GpioPin0, .adc_ch = AdcExInputCH0},
-	[BspAdcIdWaterTemp] = {.port = GpioPortA, .pin = GpioPin2, .adc_ch = AdcExInputCH2},
-	[BspAdcIdIgn] = {.port = GpioPortB, .pin = GpioPin11, .adc_ch = AdcExInputCH18},
-	[BspAdcIdZmIn] = {.port = GpioPortB, .pin = GpioPin12, .adc_ch = AdcExInputCH19},
+	[BspAdcIdFuel] =
+		{
+			.port = GpioPortA,
+			.pin = GpioPin1,
+			.adc_ch = AdcExInputCH1,
+		},
+	[BspAdcIdAdPower] =
+		{
+			.port = GpioPortA,
+			.pin = GpioPin0,
+			.adc_ch = AdcExInputCH0,
+		},
+	[BspAdcIdWaterTemp] =
+		{
+			.port = GpioPortA,
+			.pin = GpioPin2,
+			.adc_ch = AdcExInputCH2,
+		},
+	[BspAdcIdIgn] =
+		{
+			.port = GpioPortB,
+			.pin = GpioPin11,
+			.adc_ch = AdcExInputCH18,
+		},
+	[BspAdcIdZmIn] =
+		{
+			.port = GpioPortB,
+			.pin = GpioPin12,
+			.adc_ch = AdcExInputCH19,
+		},
+	[BspAdcIdLeftTurn] =
+		{
+			.port = GpioPortA,
+			.pin = GpioPin5,
+			.adc_ch = AdcExInputCH5,
+		},
+	[BspAdcIdHighBeam] =
+		{
+			.port = GpioPortA,
+			.pin = GpioPin6,
+			.adc_ch = AdcExInputCH6,
+		},
+	[BspAdcIdRightTurn] =
+		{
+			.port = GpioPortA,
+			.pin = GpioPin4,
+			.adc_ch = AdcExInputCH4,
+		},
 };
 
 static en_adc_sqr_chmux_t BspAdc_GetSqrMux(uint8_t index)
@@ -95,6 +138,8 @@ void BSP_ADC_Init(void)
  */
 void BSP_ADC_Wakeup(void)
 {
+	BspAdc_PortInit();
+
 	M0P_BGR->CR |= 0x1u;
 	delay100us_safe(1);
 

@@ -15,15 +15,6 @@ typedef struct stc_drv_input_state
 } stc_drv_input_state_t;
 
 static const stc_drv_input_cfg_t s_astDrvInputCfg[DrvInputIdCount] = {
-	[DrvInputIdLeftTurn] = {.gpio_id = BspGpioIdLeftTurn,
-							.active_level = TRUE,
-							.debounce_ms = 10u},
-	[DrvInputIdHighBeam] = {.gpio_id = BspGpioIdHighBeam,
-							.active_level = TRUE,
-							.debounce_ms = 10u},
-	[DrvInputIdRightTurn] = {.gpio_id = BspGpioIdRightTurn,
-							 .active_level = TRUE,
-							 .debounce_ms = 10u},
 	[DrvInputIdPositionLamp] = {.gpio_id = BspGpioIdPositionLamp,
 								.active_level = TRUE,
 								.debounce_ms = 10u},
