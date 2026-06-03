@@ -26,6 +26,7 @@ int DRV_EEPROM_ReadByte(uint16_t addr, uint8_t *data);
 int DRV_EEPROM_WriteByte(uint16_t addr, uint8_t data);
 int DRV_EEPROM_LoadMileage(stc_drv_eeprom_mileage_t *mileage);
 int DRV_EEPROM_SaveMileage(const stc_drv_eeprom_mileage_t *mileage);
+int DRV_EEPROM_ClearMileageAreas(void);
 
 #ifdef __cplusplus
 }

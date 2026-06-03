@@ -13,6 +13,7 @@
 #include "led_panel.h"
 
 #define SLEEP_TIME 1500
+#define APP_NORMAL_FUNCTION (1u)
 void sys_init(void);
 
 static volatile uint8_t check_self_Start = 0; // 自检
@@ -27,6 +28,14 @@ int32_t main(void)
 {
 	sys_init();
 
+#if (APP_NORMAL_FUNCTION == 0u)
+	(void)DRV_EEPROM_ClearMileageAreas();
+
+	while (1)
+	{
+		BSP_WDT_Feed();
+	}
+#else
 	while (1)
 	{
 		if (IGN_ON_OFF != last_ign_state) // 边沿触发逻辑
@@ -129,6 +138,7 @@ int32_t main(void)
 			BSP_WDT_Feed();
 		}
 	}
+#endif
 }
 
 void sys_init(void)

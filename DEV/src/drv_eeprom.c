@@ -128,6 +128,21 @@ static int DRV_EEPROM_WriteRecord(uint8_t start_addr,
 	return 0;
 }
 
+static int DRV_EEPROM_ClearRecord(uint8_t start_addr)
+{
+	uint8_t i;
+
+	for (i = 0u; i < DRV_EEPROM_MILEAGE_RECORD_SIZE; i++)
+	{
+		if (0 != DRV_EEPROM_WriteByte((uint16_t)(start_addr + i), 0x00u))
+		{
+			return DRV_EEPROM_ERROR;
+		}
+	}
+
+	return 0;
+}
+
 static int DRV_EEPROM_IsRecordValid(const uint8_t *buf)
 {
 	if (buf[DRV_EEPROM_MILEAGE_PAYLOAD_SIZE] !=
@@ -303,6 +318,23 @@ int DRV_EEPROM_SaveMileage(const stc_drv_eeprom_mileage_t *mileage)
 			return DRV_EEPROM_ERROR;
 		}
 	}
+
+	return 0;
+}
+
+int DRV_EEPROM_ClearMileageAreas(void)
+{
+	if (0 != DRV_EEPROM_ClearRecord(DRV_EEPROM_MILEAGE_AREA_A_ADDR))
+	{
+		return DRV_EEPROM_ERROR;
+	}
+
+	if (0 != DRV_EEPROM_ClearRecord(DRV_EEPROM_MILEAGE_AREA_B_ADDR))
+	{
+		return DRV_EEPROM_ERROR;
+	}
+
+	s_u8MileageBackupCounter = 0u;
 
 	return 0;
 }
