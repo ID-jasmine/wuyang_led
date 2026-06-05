@@ -3,7 +3,7 @@
 
 #define DEV_SPEED_RPM_MIN_WINDOW_TICKS (150000u)
 #define DEV_SPEED_RPM_MIN_PULSE_COUNT  (24u)
-#define DEV_SPEED_RPM_GATE_FAST_MS	   (250u)
+#define DEV_SPEED_RPM_GATE_FAST_MS	   (500u)
 #define DEV_SPEED_RPM_GATE_MID_MS	   (500u)
 #define DEV_SPEED_RPM_GATE_SLOW_MS	   (1000u)
 #define DEV_SPEED_RPM_GATE_FAST_PULSES (15u)
@@ -135,18 +135,19 @@ static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp
 
 	state = &s_astDevSpeedRpmState[id];
 	state->total_pulse_count++;
-	if (state->gate_pulse_count < 0xFFFFu)
-	{
-		state->gate_pulse_count++;
-	}
 
 	if (FALSE == state->started)
 	{
 		state->started = TRUE;
 		DevSpeedRpm_ResetAdaptiveWindow(state, timestamp);
+		DevSpeedRpm_ResetGateWindow(state);
 	}
 	else
 	{
+		if (state->gate_pulse_count < 0xFFFFu)
+		{
+			state->gate_pulse_count++;
+		}
 		state->last_tick = timestamp;
 		if (state->pulse_count < 0xFFFFu)
 		{

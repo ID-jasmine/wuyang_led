@@ -26,8 +26,9 @@
 #define APP_VEHICLE_RPM_RATIO_NUMERATOR			 (667u)
 #define APP_VEHICLE_RPM_RATIO_DENOMINATOR		 (100u)
 #define APP_VEHICLE_RPM_PER_BAR					 (500u)
-#define APP_VEHICLE_DISPLAY_CONFIRM_TICKS		 (1u)
+#define APP_VEHICLE_DISPLAY_CONFIRM_TICKS		 (2u)
 #define APP_VEHICLE_SPEED_DISPLAY_STEP			 (3u)
+#define APP_VEHICLE_SPEED_DISPLAY_DEADBAND		 (2u)
 #define APP_VEHICLE_GEAR_BLINK_TICKS			 (5u)
 #define APP_VEHICLE_FUEL_FAST_TICKS				 (30u)
 #define APP_VEHICLE_FUEL_SLOW_TICKS				 (300u)
@@ -232,6 +233,16 @@ static uint16_t App_Vehicle_ConfirmDisplayU16(uint16_t sample, uint16_t *display
 	if (sample == *display)
 	{
 		*candidate = sample;
+		*candidate_ticks = 0u;
+		return *display;
+	}
+
+	if (((sample > *display) &&
+		 ((uint16_t)(sample - *display) <= APP_VEHICLE_SPEED_DISPLAY_DEADBAND)) ||
+		((*display > sample) &&
+		 ((uint16_t)(*display - sample) <= APP_VEHICLE_SPEED_DISPLAY_DEADBAND)))
+	{
+		*candidate = *display;
 		*candidate_ticks = 0u;
 		return *display;
 	}
