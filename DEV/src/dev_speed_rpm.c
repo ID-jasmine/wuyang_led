@@ -8,10 +8,11 @@
 #define DEV_SPEED_RPM_GATE_SLOW_MS	   (1000u)
 #define DEV_SPEED_RPM_GATE_FAST_PULSES (15u)
 #define DEV_SPEED_RPM_GATE_MID_PULSES  (10u)
-#define DEV_SPEED_RPM_GATE_AVG_COUNT   (2u)
+#define DEV_SPEED_RPM_GATE_AVG_COUNT   (1u)
 #define DEV_SPEED_RPM_TIMEOUT_MS	   (1000u)
 #define DEV_SPEED_RPM_FILTER_SHIFT	   (2u)
 #define DEV_SPEED_RPM_DEFAULT_MEASURE  DevSpeedRpmMeasureGate
+#define DEV_SPEED_RPM_DIAG_SHORT_DELTA_US (4000u)
 
 typedef struct
 {
@@ -25,11 +26,18 @@ typedef struct
 	volatile boolean_t started;
 	volatile uint32_t diag_last_timestamp;
 	volatile uint32_t diag_last_delta_ticks;
+	volatile uint32_t diag_valid_last_timestamp;
+	volatile uint32_t diag_valid_delta_ticks;
+	volatile uint32_t diag_min_delta_ticks;
+	volatile uint32_t diag_max_delta_ticks;
 	volatile uint32_t diag_pps_start_pulse_count;
 	volatile uint16_t diag_pps_elapsed_ms;
 	volatile uint16_t diag_pulse_count_per_sec;
+	volatile uint16_t diag_short_delta_count;
 	volatile boolean_t diag_has_timestamp;
 	volatile boolean_t diag_has_delta;
+	volatile boolean_t diag_has_valid_timestamp;
+	volatile boolean_t diag_has_valid_delta;
 	uint32_t gate_freq_samples[DEV_SPEED_RPM_GATE_AVG_COUNT];
 	uint32_t gate_freq_sum;
 	uint8_t gate_freq_index;
@@ -130,11 +138,18 @@ static void DevSpeedRpm_ResetCaptureDiagState(stc_dev_speed_rpm_state_t *state)
 {
 	state->diag_last_timestamp = 0u;
 	state->diag_last_delta_ticks = 0u;
+	state->diag_valid_last_timestamp = 0u;
+	state->diag_valid_delta_ticks = 0u;
+	state->diag_min_delta_ticks = 0u;
+	state->diag_max_delta_ticks = 0u;
 	state->diag_pps_start_pulse_count = state->total_pulse_count;
 	state->diag_pps_elapsed_ms = 0u;
 	state->diag_pulse_count_per_sec = 0u;
+	state->diag_short_delta_count = 0u;
 	state->diag_has_timestamp = FALSE;
 	state->diag_has_delta = FALSE;
+	state->diag_has_valid_timestamp = FALSE;
+	state->diag_has_valid_delta = FALSE;
 }
 
 static void DevSpeedRpm_UpdateCaptureDiag1ms(stc_dev_speed_rpm_state_t *state)
@@ -160,16 +175,72 @@ static void DevSpeedRpm_UpdateCaptureDiag(stc_dev_speed_rpm_state_t *state,
 										  uint32_t timestamp)
 {
 	uint32_t delta_ticks;
+	uint32_t short_delta_ticks;
 
 	if (TRUE == state->diag_has_timestamp)
 	{
 		delta_ticks = timestamp - state->diag_last_timestamp;
 		state->diag_last_delta_ticks = delta_ticks;
+		if ((0u == state->diag_min_delta_ticks) ||
+			(delta_ticks < state->diag_min_delta_ticks))
+		{
+			state->diag_min_delta_ticks = delta_ticks;
+		}
+		if (delta_ticks > state->diag_max_delta_ticks)
+		{
+			state->diag_max_delta_ticks = delta_ticks;
+		}
+		if (0u != s_u32TimerClockHz)
+		{
+			short_delta_ticks =
+				(s_u32TimerClockHz * DEV_SPEED_RPM_DIAG_SHORT_DELTA_US) / 1000000u;
+			if ((delta_ticks > 0u) && (delta_ticks < short_delta_ticks) &&
+				(state->diag_short_delta_count < 0xFFFFu))
+			{
+				state->diag_short_delta_count++;
+			}
+		}
 		state->diag_has_delta = TRUE;
 	}
 
 	state->diag_last_timestamp = timestamp;
 	state->diag_has_timestamp = TRUE;
+}
+
+static boolean_t
+DevSpeedRpm_IsCaptureDeltaTooShort(const stc_dev_speed_rpm_state_t *state,
+								   uint32_t timestamp)
+{
+	uint32_t delta_ticks;
+	uint32_t short_delta_ticks;
+
+	if ((FALSE == state->diag_has_valid_timestamp) || (0u == s_u32TimerClockHz))
+	{
+		return FALSE;
+	}
+
+	delta_ticks = timestamp - state->diag_valid_last_timestamp;
+	short_delta_ticks =
+		(s_u32TimerClockHz * DEV_SPEED_RPM_DIAG_SHORT_DELTA_US) / 1000000u;
+	if ((delta_ticks > 0u) && (delta_ticks < short_delta_ticks))
+	{
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+static void DevSpeedRpm_UpdateValidCaptureDiag(stc_dev_speed_rpm_state_t *state,
+											   uint32_t timestamp)
+{
+	if (TRUE == state->diag_has_valid_timestamp)
+	{
+		state->diag_valid_delta_ticks = timestamp - state->diag_valid_last_timestamp;
+		state->diag_has_valid_delta = TRUE;
+	}
+
+	state->diag_valid_last_timestamp = timestamp;
+	state->diag_has_valid_timestamp = TRUE;
 }
 
 static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp,
@@ -189,6 +260,10 @@ static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp
 	state = &s_astDevSpeedRpmState[id];
 	state->total_pulse_count++;
 	DevSpeedRpm_UpdateCaptureDiag(state, timestamp);
+	if (FALSE == DevSpeedRpm_IsCaptureDeltaTooShort(state, timestamp))
+	{
+		DevSpeedRpm_UpdateValidCaptureDiag(state, timestamp);
+	}
 
 	if (FALSE == state->started)
 	{
@@ -508,8 +583,13 @@ en_result_t DEV_SpeedRpm_GetCaptureDiag(en_dev_speed_rpm_id_t id,
 	diag->total_pulse_count = s_astDevSpeedRpmState[id].total_pulse_count;
 	diag->last_timestamp = s_astDevSpeedRpmState[id].diag_last_timestamp;
 	diag->last_delta_ticks = s_astDevSpeedRpmState[id].diag_last_delta_ticks;
+	diag->valid_delta_ticks = s_astDevSpeedRpmState[id].diag_valid_delta_ticks;
+	diag->min_delta_ticks = s_astDevSpeedRpmState[id].diag_min_delta_ticks;
+	diag->max_delta_ticks = s_astDevSpeedRpmState[id].diag_max_delta_ticks;
+	diag->short_delta_count = s_astDevSpeedRpmState[id].diag_short_delta_count;
 	diag->pulse_count_per_sec = s_astDevSpeedRpmState[id].diag_pulse_count_per_sec;
 	diag->has_delta = s_astDevSpeedRpmState[id].diag_has_delta;
+	diag->has_valid_delta = s_astDevSpeedRpmState[id].diag_has_valid_delta;
 	__set_PRIMASK(primask);
 
 	return Ok;

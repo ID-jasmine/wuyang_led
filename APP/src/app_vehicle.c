@@ -28,7 +28,7 @@
 #define APP_VEHICLE_RPM_PER_BAR					 (500u)
 #define APP_VEHICLE_DISPLAY_CONFIRM_TICKS		 (2u)
 #define APP_VEHICLE_SPEED_DISPLAY_STEP			 (3u)
-#define APP_VEHICLE_SPEED_DISPLAY_DEADBAND		 (2u)
+#define APP_VEHICLE_SPEED_DISPLAY_DEADBAND		 (0u)
 #define APP_VEHICLE_GEAR_BLINK_TICKS			 (5u)
 #define APP_VEHICLE_FUEL_FAST_TICKS				 (30u)
 #define APP_VEHICLE_FUEL_SLOW_TICKS				 (300u)
@@ -60,8 +60,9 @@ typedef struct
 #if (APP_VEHICLE_CAPTURE_DIAG_ON_ODO != 0u)
 typedef enum
 {
-	AppVehicleCaptureDiagPageTotal = 0u,
-	AppVehicleCaptureDiagPageLastDelta,
+	AppVehicleCaptureDiagPageTimestamp = 0u,
+	AppVehicleCaptureDiagPageRawDelta,
+	AppVehicleCaptureDiagPageValidDelta,
 	AppVehicleCaptureDiagPagePulsePerSec,
 	AppVehicleCaptureDiagPageCount,
 } en_app_vehicle_capture_diag_page_t;
@@ -94,7 +95,7 @@ static boolean_t s_bVehicleRpmBarsDisplayInited = FALSE;
 static uint8_t s_u8VehicleBrightnessPercent = APP_VEHICLE_BRIGHTNESS_MAX;
 #if (APP_VEHICLE_CAPTURE_DIAG_ON_ODO != 0u)
 static en_app_vehicle_capture_diag_page_t s_enVehicleCaptureDiagPage =
-	AppVehicleCaptureDiagPageTotal;
+	AppVehicleCaptureDiagPageTimestamp;
 #endif
 #if (APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO != 0u)
 static uint32_t s_u32VehicleTestLastSpeedPulseCount = 0u;
@@ -547,16 +548,22 @@ static void App_Vehicle_ShowCaptureDiag(void)
 
 	switch (s_enVehicleCaptureDiagPage)
 	{
-	case AppVehicleCaptureDiagPageTotal:
+	case AppVehicleCaptureDiagPageTimestamp:
 		LedPanel_Set(LedPanelIdOdo, TRUE);
 		LedPanel_Set(LedPanelIdMileageKm, TRUE);
-		value = diag.total_pulse_count;
+		value = diag.last_timestamp;
 		break;
 
-	case AppVehicleCaptureDiagPageLastDelta:
+	case AppVehicleCaptureDiagPageRawDelta:
 		LedPanel_Set(LedPanelIdOdo, TRUE);
 		LedPanel_Set(LedPanelIdMileageMile, TRUE);
 		value = (TRUE == diag.has_delta) ? diag.last_delta_ticks : 0u;
+		break;
+
+	case AppVehicleCaptureDiagPageValidDelta:
+		LedPanel_Set(LedPanelIdOdo, TRUE);
+		LedPanel_Set(LedPanelIdTrip, TRUE);
+		value = (TRUE == diag.has_valid_delta) ? diag.valid_delta_ticks : 0u;
 		break;
 
 	case AppVehicleCaptureDiagPagePulsePerSec:
@@ -1183,7 +1190,7 @@ static void App_Vehicle_ProcessButtons(void)
 			(en_app_vehicle_capture_diag_page_t)(s_enVehicleCaptureDiagPage + 1u);
 		if (s_enVehicleCaptureDiagPage >= AppVehicleCaptureDiagPageCount)
 		{
-			s_enVehicleCaptureDiagPage = AppVehicleCaptureDiagPageTotal;
+			s_enVehicleCaptureDiagPage = AppVehicleCaptureDiagPageTimestamp;
 		}
 	}
 	return;

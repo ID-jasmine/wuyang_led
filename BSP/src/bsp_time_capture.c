@@ -4,6 +4,7 @@
 
 #define BSP_TIM3_CAPTURE_CLOCK_HZ	  (250000u)
 #define BSP_TIM3_CAPTURE_PERIOD_TICKS (0x10000u)
+#define BSP_TIM3_CAPTURE_HALF_PERIOD  (0x8000u)
 
 static bsp_tim3_capture_t g_tim3_cap;
 static volatile uint32_t s_u32Tim3BaseTick = 0u;
@@ -56,6 +57,20 @@ static en_tim3_m23_ccrx_t Bsp_Tim3Capture_GetCcrSel(bsp_tim3_cap_ch_t ch)
 	default:
 		return Tim3CCR0A;
 	}
+}
+
+static uint32_t Bsp_Tim3Capture_ExtendTimestamp(uint16_t cap_value,
+											   boolean_t overflow_pending)
+{
+	uint32_t timestamp;
+
+	timestamp = s_u32Tim3BaseTick + cap_value;
+	if ((TRUE == overflow_pending) && (cap_value < BSP_TIM3_CAPTURE_HALF_PERIOD))
+	{
+		timestamp += BSP_TIM3_CAPTURE_PERIOD_TICKS;
+	}
+
+	return timestamp;
 }
 
 static void Bsp_Tim3Capture_PortInit(void)
@@ -187,11 +202,7 @@ void BSP_TimeCapture_IRQHandler(void)
 				Tim3_M23_CCR_Get(Bsp_Tim3Capture_GetCcrSel(s_atim3_cap_pins[i].ch));
 			(void)Tim3_ClearIntFlag(irq_type);
 
-			timestamp = s_u32Tim3BaseTick + cap_value;
-			if ((TRUE == overflow_pending) && (cap_value < 0x8000u))
-			{
-				timestamp += BSP_TIM3_CAPTURE_PERIOD_TICKS;
-			}
+			timestamp = Bsp_Tim3Capture_ExtendTimestamp(cap_value, overflow_pending);
 
 			if (NULL != g_tim3_cap.callback)
 			{

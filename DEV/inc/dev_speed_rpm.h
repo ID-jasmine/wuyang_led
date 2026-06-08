@@ -47,8 +47,13 @@ extern "C"
 		uint32_t total_pulse_count;
 		uint32_t last_timestamp;
 		uint32_t last_delta_ticks;
+		uint32_t valid_delta_ticks;
+		uint32_t min_delta_ticks;
+		uint32_t max_delta_ticks;
+		uint16_t short_delta_count;
 		uint16_t pulse_count_per_sec;
 		boolean_t has_delta;
+		boolean_t has_valid_delta;
 	} stc_dev_speed_rpm_capture_diag_t;
 
 	extern stc_dev_speed_rpm_t g_stcDevSpeedRpm;
