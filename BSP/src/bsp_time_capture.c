@@ -2,7 +2,7 @@
 #include "sysctrl.h"
 #include "timer3.h"
 
-#define BSP_TIM3_CAPTURE_CLOCK_HZ	  (1000000u)
+#define BSP_TIM3_CAPTURE_CLOCK_HZ	  (250000u)
 #define BSP_TIM3_CAPTURE_PERIOD_TICKS (0x10000u)
 
 static bsp_tim3_capture_t g_tim3_cap;
@@ -95,7 +95,7 @@ static void Bsp_Tim3Capture_TimerInit(void)
 
 	base_cfg.enWorkMode = Tim3WorkMode3;
 	base_cfg.enCT = Tim3Timer;
-	base_cfg.enPRS = Tim3PCLKDiv16; // 16MHz / 16 = 1MHz
+	base_cfg.enPRS = Tim3PCLKDiv64; // 16MHz / 64 = 250kHz
 	base_cfg.enCntDir = Tim3CntUp;
 
 	(void)Tim3_Mode23_Init(&base_cfg);

@@ -42,6 +42,15 @@ extern "C"
 		void *reserved;
 	} stc_dev_speed_rpm_t;
 
+	typedef struct
+	{
+		uint32_t total_pulse_count;
+		uint32_t last_timestamp;
+		uint32_t last_delta_ticks;
+		uint16_t pulse_count_per_sec;
+		boolean_t has_delta;
+	} stc_dev_speed_rpm_capture_diag_t;
+
 	extern stc_dev_speed_rpm_t g_stcDevSpeedRpm;
 
 	en_result_t DEV_SpeedRpm_Init(void);
@@ -50,6 +59,9 @@ extern "C"
 	uint32_t DEV_SpeedRpm_GetFreqMilliHzByMeasure(en_dev_speed_rpm_id_t id,
 												  en_dev_speed_rpm_measure_t measure);
 	uint32_t DEV_SpeedRpm_GetPulseCount(en_dev_speed_rpm_id_t id);
+	en_result_t DEV_SpeedRpm_GetCaptureDiag(en_dev_speed_rpm_id_t id,
+											stc_dev_speed_rpm_capture_diag_t *diag);
+	en_result_t DEV_SpeedRpm_ResetCaptureDiag(en_dev_speed_rpm_id_t id);
 	boolean_t DEV_SpeedRpm_IsValid(en_dev_speed_rpm_id_t id);
 	boolean_t DEV_SpeedRpm_IsValidByMeasure(en_dev_speed_rpm_id_t id,
 											en_dev_speed_rpm_measure_t measure);

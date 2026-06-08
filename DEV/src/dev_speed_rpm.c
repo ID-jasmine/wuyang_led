@@ -23,6 +23,13 @@ typedef struct
 	volatile uint32_t total_pulse_count;
 	volatile uint16_t timeout_count;
 	volatile boolean_t started;
+	volatile uint32_t diag_last_timestamp;
+	volatile uint32_t diag_last_delta_ticks;
+	volatile uint32_t diag_pps_start_pulse_count;
+	volatile uint16_t diag_pps_elapsed_ms;
+	volatile uint16_t diag_pulse_count_per_sec;
+	volatile boolean_t diag_has_timestamp;
+	volatile boolean_t diag_has_delta;
 	uint32_t gate_freq_samples[DEV_SPEED_RPM_GATE_AVG_COUNT];
 	uint32_t gate_freq_sum;
 	uint8_t gate_freq_index;
@@ -119,6 +126,52 @@ static void DevSpeedRpm_SetInvalid(en_dev_speed_rpm_id_t id)
 	DevSpeedRpm_ResetGateAverage(&s_astDevSpeedRpmState[id]);
 }
 
+static void DevSpeedRpm_ResetCaptureDiagState(stc_dev_speed_rpm_state_t *state)
+{
+	state->diag_last_timestamp = 0u;
+	state->diag_last_delta_ticks = 0u;
+	state->diag_pps_start_pulse_count = state->total_pulse_count;
+	state->diag_pps_elapsed_ms = 0u;
+	state->diag_pulse_count_per_sec = 0u;
+	state->diag_has_timestamp = FALSE;
+	state->diag_has_delta = FALSE;
+}
+
+static void DevSpeedRpm_UpdateCaptureDiag1ms(stc_dev_speed_rpm_state_t *state)
+{
+	uint32_t delta_pulses;
+
+	if (state->diag_pps_elapsed_ms < 1000u)
+	{
+		state->diag_pps_elapsed_ms++;
+	}
+
+	if (state->diag_pps_elapsed_ms >= 1000u)
+	{
+		delta_pulses = state->total_pulse_count - state->diag_pps_start_pulse_count;
+		state->diag_pps_start_pulse_count = state->total_pulse_count;
+		state->diag_pps_elapsed_ms = 0u;
+		state->diag_pulse_count_per_sec =
+			(delta_pulses > 0xFFFFu) ? 0xFFFFu : (uint16_t)delta_pulses;
+	}
+}
+
+static void DevSpeedRpm_UpdateCaptureDiag(stc_dev_speed_rpm_state_t *state,
+										  uint32_t timestamp)
+{
+	uint32_t delta_ticks;
+
+	if (TRUE == state->diag_has_timestamp)
+	{
+		delta_ticks = timestamp - state->diag_last_timestamp;
+		state->diag_last_delta_ticks = delta_ticks;
+		state->diag_has_delta = TRUE;
+	}
+
+	state->diag_last_timestamp = timestamp;
+	state->diag_has_timestamp = TRUE;
+}
+
 static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp,
 										void *user_data)
 {
@@ -135,6 +188,7 @@ static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp
 
 	state = &s_astDevSpeedRpmState[id];
 	state->total_pulse_count++;
+	DevSpeedRpm_UpdateCaptureDiag(state, timestamp);
 
 	if (FALSE == state->started)
 	{
@@ -379,6 +433,7 @@ static en_result_t DevSpeedRpm_InitImpl(void)
 		s_astDevSpeedRpmState[i].total_pulse_count = 0u;
 		s_astDevSpeedRpmState[i].timeout_count = 0u;
 		s_astDevSpeedRpmState[i].started = FALSE;
+		DevSpeedRpm_ResetCaptureDiagState(&s_astDevSpeedRpmState[i]);
 		DevSpeedRpm_ResetGateAverage(&s_astDevSpeedRpmState[i]);
 		DevSpeedRpm_SetInvalid((en_dev_speed_rpm_id_t)i);
 	}
@@ -399,6 +454,7 @@ static void DevSpeedRpm_Task1msImpl(void)
 	{
 		DevSpeedRpm_TakeSnapshot((en_dev_speed_rpm_id_t)i, &snapshot);
 		DevSpeedRpm_CalcFreq((en_dev_speed_rpm_id_t)i, &snapshot);
+		DevSpeedRpm_UpdateCaptureDiag1ms(&s_astDevSpeedRpmState[i]);
 	}
 }
 
@@ -435,6 +491,45 @@ static uint32_t DevSpeedRpm_GetPulseCountImpl(en_dev_speed_rpm_id_t id)
 	__set_PRIMASK(primask);
 
 	return pulse_count;
+}
+
+en_result_t DEV_SpeedRpm_GetCaptureDiag(en_dev_speed_rpm_id_t id,
+										stc_dev_speed_rpm_capture_diag_t *diag)
+{
+	uint32_t primask;
+
+	if ((NULL == diag) || (Ok != DevSpeedRpm_CheckId(id)))
+	{
+		return ErrorInvalidParameter;
+	}
+
+	primask = __get_PRIMASK();
+	__disable_irq();
+	diag->total_pulse_count = s_astDevSpeedRpmState[id].total_pulse_count;
+	diag->last_timestamp = s_astDevSpeedRpmState[id].diag_last_timestamp;
+	diag->last_delta_ticks = s_astDevSpeedRpmState[id].diag_last_delta_ticks;
+	diag->pulse_count_per_sec = s_astDevSpeedRpmState[id].diag_pulse_count_per_sec;
+	diag->has_delta = s_astDevSpeedRpmState[id].diag_has_delta;
+	__set_PRIMASK(primask);
+
+	return Ok;
+}
+
+en_result_t DEV_SpeedRpm_ResetCaptureDiag(en_dev_speed_rpm_id_t id)
+{
+	uint32_t primask;
+
+	if (Ok != DevSpeedRpm_CheckId(id))
+	{
+		return ErrorInvalidParameter;
+	}
+
+	primask = __get_PRIMASK();
+	__disable_irq();
+	DevSpeedRpm_ResetCaptureDiagState(&s_astDevSpeedRpmState[id]);
+	__set_PRIMASK(primask);
+
+	return Ok;
 }
 
 static boolean_t
