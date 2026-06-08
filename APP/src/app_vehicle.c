@@ -130,7 +130,9 @@ static boolean_t s_bVehicleClockValid = FALSE;
 static boolean_t s_bVehicleClockSettingMode = FALSE;
 static boolean_t s_bVehicleClockSettingHour = TRUE;
 static boolean_t s_bVehicleClockBlinkState = FALSE;
+#if (APP_VEHICLE_CAPTURE_DIAG_ON_ODO == 0u)
 static uint8_t s_u8VehicleClockBlinkTick = 0;
+#endif
 
 static en_result_t App_Vehicle_SetLinearList(const uint8_t *indices, uint8_t count,
 											 boolean_t level)
@@ -1194,7 +1196,7 @@ static void App_Vehicle_ProcessButtons(void)
 		}
 	}
 	return;
-#endif
+#else
 
 	if (s_bVehicleClockSettingMode)
 	{
@@ -1279,6 +1281,7 @@ static void App_Vehicle_ProcessButtons(void)
 			}
 		}
 	}
+#endif
 }
 
 void App_Vehicle_Task10ms(void)
