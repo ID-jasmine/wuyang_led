@@ -29,6 +29,7 @@
 #define APP_VEHICLE_DISPLAY_CONFIRM_TICKS		 (2u)
 #define APP_VEHICLE_SPEED_DISPLAY_STEP			 (3u)
 #define APP_VEHICLE_SPEED_DISPLAY_DEADBAND		 (0u)
+#define APP_VEHICLE_SPEED_CALC_SCALE			 (10u)
 #define APP_VEHICLE_GEAR_BLINK_TICKS			 (5u)
 #define APP_VEHICLE_FUEL_FAST_TICKS				 (30u)
 #define APP_VEHICLE_FUEL_SLOW_TICKS				 (300u)
@@ -40,7 +41,7 @@
 #define APP_VEHICLE_TRIP_MAX_TENTHS			   (9999u)
 #define APP_VEHICLE_TOTAL_MAX_TENTHS		   (9999990u)
 #define APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO (0u)
-#define APP_VEHICLE_CAPTURE_DIAG_ON_ODO	   (1u)
+#define APP_VEHICLE_CAPTURE_DIAG_ON_ODO	   (0u)
 #define APP_VEHICLE_FREQ_MEASURE			   DevSpeedRpmMeasureGate
 #define APP_VEHICLE_BRIGHTNESS_DARK_RAW		   (819u)
 #define APP_VEHICLE_BRIGHTNESS_BRIGHT_RAW	   (3276u)
@@ -360,7 +361,7 @@ static uint8_t App_Vehicle_ConfirmDisplayU8(uint8_t sample, uint8_t *display,
 	return *display;
 }
 
-static uint16_t App_Vehicle_MapSpeed(uint16_t speed)
+static uint16_t App_Vehicle_MapSpeedX10(uint16_t speed_x10)
 {
 	uint8_t i;
 	const stc_app_vehicle_speed_map_t *lower;
@@ -368,23 +369,35 @@ static uint16_t App_Vehicle_MapSpeed(uint16_t speed)
 	uint32_t numerator;
 	uint32_t denominator;
 	uint32_t mapped;
+	uint32_t lower_input_x10;
+	uint32_t upper_input_x10;
+	uint32_t lower_output_x10;
+	uint32_t upper_output_x10;
 
 	for (i = 1u; i < ARRAY_SZ(s_astVehicleSpeedMap); i++)
 	{
 		upper = &s_astVehicleSpeedMap[i];
-		if (speed <= upper->input)
+		upper_input_x10 = (uint32_t)upper->input * APP_VEHICLE_SPEED_CALC_SCALE;
+		if (speed_x10 <= upper_input_x10)
 		{
 			lower = &s_astVehicleSpeedMap[i - 1u];
-			numerator = (uint32_t)(speed - lower->input) *
-						(uint32_t)(upper->output - lower->output);
-			denominator = (uint32_t)(upper->input - lower->input);
-			mapped = (uint32_t)lower->output +
+			lower_input_x10 =
+				(uint32_t)lower->input * APP_VEHICLE_SPEED_CALC_SCALE;
+			lower_output_x10 =
+				(uint32_t)lower->output * APP_VEHICLE_SPEED_CALC_SCALE;
+			upper_output_x10 =
+				(uint32_t)upper->output * APP_VEHICLE_SPEED_CALC_SCALE;
+			numerator = (uint32_t)(speed_x10 - lower_input_x10) *
+						(upper_output_x10 - lower_output_x10);
+			denominator = upper_input_x10 - lower_input_x10;
+			mapped = lower_output_x10 +
 					 ((numerator + (denominator / 2u)) / denominator);
 			return (uint16_t)mapped;
 		}
 	}
 
-	return s_astVehicleSpeedMap[ARRAY_SZ(s_astVehicleSpeedMap) - 1u].output;
+	upper = &s_astVehicleSpeedMap[ARRAY_SZ(s_astVehicleSpeedMap) - 1u];
+	return (uint16_t)((uint32_t)upper->output * APP_VEHICLE_SPEED_CALC_SCALE);
 }
 
 static void App_Vehicle_SaveMileage(void)
@@ -664,6 +677,7 @@ static uint16_t App_Vehicle_GetCurrentSpeed(void)
 	uint32_t freq_mhz;
 	uint32_t denominator;
 	uint32_t speed;
+	uint32_t speed_x10;
 
 	if (FALSE ==
 		DEV_SpeedRpm_IsValidByMeasure(DevSpeedRpmIdSpeed, APP_VEHICLE_FREQ_MEASURE))
@@ -678,17 +692,21 @@ static uint16_t App_Vehicle_GetCurrentSpeed(void)
 	freq_mhz = DEV_SpeedRpm_GetFreqMilliHzByMeasure(DevSpeedRpmIdSpeed,
 													APP_VEHICLE_FREQ_MEASURE);
 	denominator = APP_VEHICLE_SPEED_PULSES_PER_KM * APP_VEHICLE_MILLIHZ_PER_HZ;
-	speed = ((uint64_t)freq_mhz * 3600u + (denominator / 2u)) / denominator;
+	speed_x10 = ((uint64_t)freq_mhz * 3600u * APP_VEHICLE_SPEED_CALC_SCALE +
+				 (denominator / 2u)) /
+				denominator;
 
-	if (speed > 199u)
+	if (speed_x10 > (199u * APP_VEHICLE_SPEED_CALC_SCALE))
 	{
-		speed = 199u;
+		speed_x10 = 199u * APP_VEHICLE_SPEED_CALC_SCALE;
 	}
-	speed = App_Vehicle_MapSpeed((uint16_t)speed);
-	if (speed > 199u)
+	speed_x10 = App_Vehicle_MapSpeedX10((uint16_t)speed_x10);
+	if (speed_x10 > (199u * APP_VEHICLE_SPEED_CALC_SCALE))
 	{
-		speed = 199u;
+		speed_x10 = 199u * APP_VEHICLE_SPEED_CALC_SCALE;
 	}
+	speed = (speed_x10 + (APP_VEHICLE_SPEED_CALC_SCALE / 2u)) /
+			APP_VEHICLE_SPEED_CALC_SCALE;
 	if (0u == speed)
 	{
 		s_u16VehicleDisplaySpeed = 0u;
@@ -731,6 +749,10 @@ static uint8_t App_Vehicle_GetCurrentRpmBarCount(void)
 
 	rpm = App_Vehicle_GetCurrentEngineRpm();
 	bar_count = (rpm + APP_VEHICLE_RPM_PER_BAR - 1u) / APP_VEHICLE_RPM_PER_BAR;
+	if (0u == bar_count)
+	{
+		bar_count = 1u;
+	}
 	if (bar_count > LED_PANEL_RPM_BAR_COUNT)
 	{
 		bar_count = LED_PANEL_RPM_BAR_COUNT;
