@@ -208,21 +208,24 @@ static void DevSpeedRpm_UpdateCaptureDiag(stc_dev_speed_rpm_state_t *state,
 }
 
 static boolean_t
-DevSpeedRpm_IsCaptureDeltaTooShort(const stc_dev_speed_rpm_state_t *state,
-								   uint32_t timestamp)
+DevSpeedRpm_IsCaptureDeltaOutlier(const stc_dev_speed_rpm_state_t *state,
+								  uint32_t timestamp)
 {
 	uint32_t delta_ticks;
-	uint32_t short_delta_ticks;
 
-	if ((FALSE == state->diag_has_valid_timestamp) || (0u == s_u32TimerClockHz))
+	if (FALSE == state->diag_has_valid_timestamp)
 	{
 		return FALSE;
 	}
 
 	delta_ticks = timestamp - state->diag_valid_last_timestamp;
-	short_delta_ticks =
-		(s_u32TimerClockHz * DEV_SPEED_RPM_DIAG_SHORT_DELTA_US) / 1000000u;
-	if ((delta_ticks > 0u) && (delta_ticks < short_delta_ticks))
+	if (0u == delta_ticks)
+	{
+		return TRUE;
+	}
+
+	if ((TRUE == state->diag_has_valid_delta) &&
+		(delta_ticks < ((state->diag_valid_delta_ticks + 3u) / 4u)))
 	{
 		return TRUE;
 	}
@@ -260,31 +263,31 @@ static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp
 	state = &s_astDevSpeedRpmState[id];
 	state->total_pulse_count++;
 	DevSpeedRpm_UpdateCaptureDiag(state, timestamp);
-	if (FALSE == DevSpeedRpm_IsCaptureDeltaTooShort(state, timestamp))
+	if (FALSE == DevSpeedRpm_IsCaptureDeltaOutlier(state, timestamp))
 	{
 		DevSpeedRpm_UpdateValidCaptureDiag(state, timestamp);
-	}
 
-	if (FALSE == state->started)
-	{
-		state->started = TRUE;
-		DevSpeedRpm_ResetAdaptiveWindow(state, timestamp);
-		DevSpeedRpm_ResetGateWindow(state);
-	}
-	else
-	{
-		if (state->gate_pulse_count < 0xFFFFu)
+		if (FALSE == state->started)
 		{
-			state->gate_pulse_count++;
+			state->started = TRUE;
+			DevSpeedRpm_ResetAdaptiveWindow(state, timestamp);
+			DevSpeedRpm_ResetGateWindow(state);
 		}
-		state->last_tick = timestamp;
-		if (state->pulse_count < 0xFFFFu)
+		else
 		{
-			state->pulse_count++;
+			if (state->gate_pulse_count < 0xFFFFu)
+			{
+				state->gate_pulse_count++;
+			}
+			state->last_tick = timestamp;
+			if (state->pulse_count < 0xFFFFu)
+			{
+				state->pulse_count++;
+			}
 		}
-	}
 
-	state->timeout_count = 0u;
+		state->timeout_count = 0u;
+	}
 }
 
 static void DevSpeedRpm_UpdateFreq(en_dev_speed_rpm_id_t id,

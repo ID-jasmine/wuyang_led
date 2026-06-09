@@ -12,7 +12,7 @@
 #include "drv_rtc.h"
 #include "led_panel.h"
 
-#define SLEEP_TIME 1500
+#define SLEEP_TIME			1500
 #define APP_NORMAL_FUNCTION (1u)
 void sys_init(void);
 
