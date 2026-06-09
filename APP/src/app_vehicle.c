@@ -41,12 +41,13 @@
 #define APP_VEHICLE_TRIP_MAX_TENTHS			   (9999u)
 #define APP_VEHICLE_TOTAL_MAX_TENTHS		   (9999990u)
 #define APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO (0u)
-#define APP_VEHICLE_CAPTURE_DIAG_ON_ODO	   (0u)
+#define APP_VEHICLE_CAPTURE_DIAG_ON_ODO		   (0u)
+#define APP_VEHICLE_TEST_SHOW_LIGHT_RAW_ON_ODO (0u)
 #define APP_VEHICLE_FREQ_MEASURE			   DevSpeedRpmMeasureGate
 #define APP_VEHICLE_BRIGHTNESS_DARK_RAW		   (819u)
 #define APP_VEHICLE_BRIGHTNESS_BRIGHT_RAW	   (3276u)
 #define APP_VEHICLE_BRIGHTNESS_MIN			   (15u)
-#define APP_VEHICLE_BRIGHTNESS_MAX			   (50u)
+#define APP_VEHICLE_BRIGHTNESS_MAX			   (55u)
 
 #if (APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO != 0u)
 #include "bsp_sys.h"
@@ -381,17 +382,13 @@ static uint16_t App_Vehicle_MapSpeedX10(uint16_t speed_x10)
 		if (speed_x10 <= upper_input_x10)
 		{
 			lower = &s_astVehicleSpeedMap[i - 1u];
-			lower_input_x10 =
-				(uint32_t)lower->input * APP_VEHICLE_SPEED_CALC_SCALE;
-			lower_output_x10 =
-				(uint32_t)lower->output * APP_VEHICLE_SPEED_CALC_SCALE;
-			upper_output_x10 =
-				(uint32_t)upper->output * APP_VEHICLE_SPEED_CALC_SCALE;
+			lower_input_x10 = (uint32_t)lower->input * APP_VEHICLE_SPEED_CALC_SCALE;
+			lower_output_x10 = (uint32_t)lower->output * APP_VEHICLE_SPEED_CALC_SCALE;
+			upper_output_x10 = (uint32_t)upper->output * APP_VEHICLE_SPEED_CALC_SCALE;
 			numerator = (uint32_t)(speed_x10 - lower_input_x10) *
 						(upper_output_x10 - lower_output_x10);
 			denominator = upper_input_x10 - lower_input_x10;
-			mapped = lower_output_x10 +
-					 ((numerator + (denominator / 2u)) / denominator);
+			mapped = lower_output_x10 + ((numerator + (denominator / 2u)) / denominator);
 			return (uint16_t)mapped;
 		}
 	}
@@ -437,7 +434,8 @@ static void App_Vehicle_LoadMileage(void)
 			App_Vehicle_SaveMileage();
 		}
 		s_u32VehicleMileagePulseRemainder = 0u;
-		s_u32VehicleMileageLastPulseCount = DEV_SpeedRpm_GetPulseCount(DevSpeedRpmIdSpeed);
+		s_u32VehicleMileageLastPulseCount =
+			DEV_SpeedRpm_GetPulseCount(DevSpeedRpmIdSpeed);
 		s_bVehicleMileageLoaded = TRUE;
 		return;
 	}
@@ -600,6 +598,11 @@ static void App_Vehicle_ShowMileage(void)
 #elif (APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO != 0u)
 	LedPanel_Set(LedPanelIdOdo, TRUE);
 	(void)LedPanel_ShowTotalOdometer(s_u32VehicleTestFreqX100);
+#elif (APP_VEHICLE_TEST_SHOW_LIGHT_RAW_ON_ODO != 0u)
+	LedPanel_Set(LedPanelIdOdo, TRUE);
+	LedPanel_Set(LedPanelIdMileageKm, TRUE);
+	(void)LedPanel_ShowTotalOdometer(DRV_ADC_IsReady() ? DRV_ADC_GetAvg(BspAdcIdZmIn)
+													   : 0u);
 #else
 	LedPanel_Set(s_bVehicleMileageTripDisplay ? LedPanelIdTrip : LedPanelIdOdo, TRUE);
 
@@ -692,9 +695,9 @@ static uint16_t App_Vehicle_GetCurrentSpeed(void)
 	freq_mhz = DEV_SpeedRpm_GetFreqMilliHzByMeasure(DevSpeedRpmIdSpeed,
 													APP_VEHICLE_FREQ_MEASURE);
 	denominator = APP_VEHICLE_SPEED_PULSES_PER_KM * APP_VEHICLE_MILLIHZ_PER_HZ;
-	speed_x10 = ((uint64_t)freq_mhz * 3600u * APP_VEHICLE_SPEED_CALC_SCALE +
-				 (denominator / 2u)) /
-				denominator;
+	speed_x10 =
+		((uint64_t)freq_mhz * 3600u * APP_VEHICLE_SPEED_CALC_SCALE + (denominator / 2u)) /
+		denominator;
 
 	if (speed_x10 > (199u * APP_VEHICLE_SPEED_CALC_SCALE))
 	{
@@ -705,8 +708,8 @@ static uint16_t App_Vehicle_GetCurrentSpeed(void)
 	{
 		speed_x10 = 199u * APP_VEHICLE_SPEED_CALC_SCALE;
 	}
-	speed = (speed_x10 + (APP_VEHICLE_SPEED_CALC_SCALE / 2u)) /
-			APP_VEHICLE_SPEED_CALC_SCALE;
+	speed =
+		(speed_x10 + (APP_VEHICLE_SPEED_CALC_SCALE / 2u)) / APP_VEHICLE_SPEED_CALC_SCALE;
 	if (0u == speed)
 	{
 		s_u16VehicleDisplaySpeed = 0u;
@@ -895,8 +898,8 @@ static void App_Vehicle_UpdateBrightness(void)
 			(uint32_t)APP_VEHICLE_BRIGHTNESS_BRIGHT_RAW - APP_VEHICLE_BRIGHTNESS_DARK_RAW;
 		offset = (uint32_t)raw - APP_VEHICLE_BRIGHTNESS_DARK_RAW;
 		brightness = (uint8_t)(APP_VEHICLE_BRIGHTNESS_MIN +
-							   ((offset *
-								 (APP_VEHICLE_BRIGHTNESS_MAX - APP_VEHICLE_BRIGHTNESS_MIN) +
+							   ((offset * (APP_VEHICLE_BRIGHTNESS_MAX -
+										   APP_VEHICLE_BRIGHTNESS_MIN) +
 								 (span / 2u)) /
 								span));
 	}
