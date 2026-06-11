@@ -16,6 +16,8 @@
 #define DEV_SPEED_RPM_GATE_SPIKE_NUMERATOR	  (11u)
 #define DEV_SPEED_RPM_GATE_SPIKE_DENOMINATOR	  (10u)
 #define DEV_SPEED_RPM_GATE_SPIKE_CONFIRM_COUNT (2u)
+#define DEV_SPEED_RPM_GATE_SPIKE_MATCH_NUMERATOR (11u)
+#define DEV_SPEED_RPM_GATE_SPIKE_MATCH_DENOMINATOR (10u)
 
 typedef struct
 {
@@ -255,6 +257,8 @@ static boolean_t DevSpeedRpm_ShouldIgnoreGateSpike(stc_dev_speed_rpm_state_t *st
 {
 	uint32_t current_freq_mhz;
 	uint32_t spike_threshold_mhz;
+	uint32_t candidate_low_mhz;
+	uint32_t candidate_high_mhz;
 
 	if ((FALSE == state->valid[DevSpeedRpmMeasureGate]) ||
 		(0u == state->freq_mhz[DevSpeedRpmMeasureGate]))
@@ -276,7 +280,28 @@ static boolean_t DevSpeedRpm_ShouldIgnoreGateSpike(stc_dev_speed_rpm_state_t *st
 		return FALSE;
 	}
 
-	state->gate_spike_candidate_freq = new_freq_mhz;
+	if (0u != state->gate_spike_candidate_freq)
+	{
+		candidate_low_mhz =
+			(uint32_t)(((uint64_t)state->gate_spike_candidate_freq *
+						DEV_SPEED_RPM_GATE_SPIKE_DENOMINATOR) /
+					   DEV_SPEED_RPM_GATE_SPIKE_MATCH_NUMERATOR);
+		candidate_high_mhz =
+			(uint32_t)(((uint64_t)state->gate_spike_candidate_freq *
+						DEV_SPEED_RPM_GATE_SPIKE_MATCH_NUMERATOR) /
+					   DEV_SPEED_RPM_GATE_SPIKE_MATCH_DENOMINATOR);
+		if ((new_freq_mhz < candidate_low_mhz) ||
+			(new_freq_mhz > candidate_high_mhz))
+		{
+			state->gate_spike_candidate_freq = new_freq_mhz;
+			state->gate_spike_candidate_count = 0u;
+		}
+	}
+	else
+	{
+		state->gate_spike_candidate_freq = new_freq_mhz;
+	}
+
 	if (state->gate_spike_candidate_count < DEV_SPEED_RPM_GATE_SPIKE_CONFIRM_COUNT)
 	{
 		state->gate_spike_candidate_count++;
