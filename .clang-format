@@ -11,6 +11,7 @@ IndentCaseLabels: false
 ColumnLimit: 90
 AccessModifierOffset: -4
 NamespaceIndentation: All
+IndentPPDirectives: BeforeHash
 FixNamespaceComments: false
 AlignConsecutiveMacros: true
 AlignTrailingComments: true

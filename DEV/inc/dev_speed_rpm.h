@@ -22,17 +22,33 @@ extern "C"
 		DevSpeedRpmMeasureCount,
 	} en_dev_speed_rpm_measure_t;
 
+#ifndef DEV_SPEED_RPM_USE_ADAPTIVE_DEFAULT
+	#define DEV_SPEED_RPM_USE_ADAPTIVE_DEFAULT (1u)
+#endif
+
+#ifndef DEV_SPEED_RPM_LEGACY_MEASURE
+	#define DEV_SPEED_RPM_LEGACY_MEASURE DevSpeedRpmMeasureGate
+#endif
+
+#ifndef DEV_SPEED_RPM_DEFAULT_MEASURE
+	#if (DEV_SPEED_RPM_USE_ADAPTIVE_DEFAULT != 0u)
+		#define DEV_SPEED_RPM_DEFAULT_MEASURE DevSpeedRpmMeasureAdaptive
+	#else
+		#define DEV_SPEED_RPM_DEFAULT_MEASURE DEV_SPEED_RPM_LEGACY_MEASURE
+	#endif
+#endif
+
 	typedef struct
 	{
 		en_result_t (*init)(void);
 		void (*task_1ms)(void);
 		uint32_t (*get_freq_mhz)(en_dev_speed_rpm_id_t id);
 		uint32_t (*get_freq_mhz_by_measure)(en_dev_speed_rpm_id_t id,
-											 en_dev_speed_rpm_measure_t measure);
+											en_dev_speed_rpm_measure_t measure);
 		uint32_t (*get_pulse_count)(en_dev_speed_rpm_id_t id);
 		boolean_t (*is_valid)(en_dev_speed_rpm_id_t id);
 		boolean_t (*is_valid_by_measure)(en_dev_speed_rpm_id_t id,
-										  en_dev_speed_rpm_measure_t measure);
+										 en_dev_speed_rpm_measure_t measure);
 	} stc_dev_speed_rpm_ops_t;
 
 	typedef struct

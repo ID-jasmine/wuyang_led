@@ -26,8 +26,13 @@
 #define APP_VEHICLE_RPM_RATIO_NUMERATOR			 (667u)
 #define APP_VEHICLE_RPM_RATIO_DENOMINATOR		 (100u)
 #define APP_VEHICLE_RPM_PER_BAR					 (500u)
+#if (DEV_SPEED_RPM_USE_ADAPTIVE_DEFAULT != 0u)
+#define APP_VEHICLE_DISPLAY_CONFIRM_TICKS (1u)
+#define APP_VEHICLE_SPEED_DISPLAY_STEP	 (8u)
+#else
 #define APP_VEHICLE_DISPLAY_CONFIRM_TICKS		 (2u)
 #define APP_VEHICLE_SPEED_DISPLAY_STEP			 (10u)
+#endif
 #define APP_VEHICLE_SPEED_DISPLAY_DEADBAND		 (0u)
 #define APP_VEHICLE_SPEED_CALC_SCALE			 (10u)
 #define APP_VEHICLE_GEAR_BLINK_TICKS			 (5u)
@@ -45,7 +50,7 @@
 #define APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO (0u)
 #define APP_VEHICLE_CAPTURE_DIAG_ON_ODO		   (0u)
 #define APP_VEHICLE_TEST_SHOW_LIGHT_RAW_ON_ODO (0u)
-#define APP_VEHICLE_FREQ_MEASURE			   DevSpeedRpmMeasureGate
+#define APP_VEHICLE_FREQ_MEASURE			   DEV_SPEED_RPM_DEFAULT_MEASURE
 #define APP_VEHICLE_BRIGHTNESS_DARK_RAW		   (819u)
 #define APP_VEHICLE_BRIGHTNESS_BRIGHT_RAW	   (3276u)
 #define APP_VEHICLE_BRIGHTNESS_MIN			   (15u)
@@ -686,8 +691,9 @@ static uint16_t App_Vehicle_GetCurrentSpeed(void)
 	uint32_t speed;
 	uint32_t speed_x10;
 
-	if (FALSE ==
-		DEV_SpeedRpm_IsValidByMeasure(DevSpeedRpmIdSpeed, APP_VEHICLE_FREQ_MEASURE))
+	freq_mhz = DEV_SpeedRpm_GetFreqMilliHzByMeasure(DevSpeedRpmIdSpeed,
+													APP_VEHICLE_FREQ_MEASURE);
+	if (0u == freq_mhz)
 	{
 		s_u16VehicleDisplaySpeed = 0u;
 		s_u16VehicleSpeedCandidate = 0u;
@@ -696,8 +702,6 @@ static uint16_t App_Vehicle_GetCurrentSpeed(void)
 		return 0u;
 	}
 
-	freq_mhz = DEV_SpeedRpm_GetFreqMilliHzByMeasure(DevSpeedRpmIdSpeed,
-													APP_VEHICLE_FREQ_MEASURE);
 	denominator = APP_VEHICLE_SPEED_PULSES_PER_KM * APP_VEHICLE_MILLIHZ_PER_HZ;
 	speed_x10 =
 		((uint64_t)freq_mhz * 3600u * APP_VEHICLE_SPEED_CALC_SCALE + (denominator / 2u)) /
@@ -733,14 +737,13 @@ static uint32_t App_Vehicle_GetCurrentEngineRpm(void)
 	uint32_t freq_mhz;
 	uint32_t denominator;
 
-	if (FALSE ==
-		DEV_SpeedRpm_IsValidByMeasure(DevSpeedRpmIdRpm, APP_VEHICLE_FREQ_MEASURE))
+	freq_mhz =
+		DEV_SpeedRpm_GetFreqMilliHzByMeasure(DevSpeedRpmIdRpm, APP_VEHICLE_FREQ_MEASURE);
+	if (0u == freq_mhz)
 	{
 		return 0u;
 	}
 
-	freq_mhz =
-		DEV_SpeedRpm_GetFreqMilliHzByMeasure(DevSpeedRpmIdRpm, APP_VEHICLE_FREQ_MEASURE);
 	denominator = APP_VEHICLE_MILLIHZ_PER_HZ * APP_VEHICLE_RPM_RATIO_DENOMINATOR *
 				  APP_VEHICLE_HALL_POLE_PAIRS;
 

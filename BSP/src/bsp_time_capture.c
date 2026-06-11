@@ -60,7 +60,7 @@ static en_tim3_m23_ccrx_t Bsp_Tim3Capture_GetCcrSel(bsp_tim3_cap_ch_t ch)
 }
 
 static uint32_t Bsp_Tim3Capture_ExtendTimestamp(uint16_t cap_value,
-											   boolean_t overflow_pending)
+												boolean_t overflow_pending)
 {
 	uint32_t timestamp;
 
@@ -108,7 +108,7 @@ static void Bsp_Tim3Capture_TimerInit(void)
 
 	Sysctrl_SetPeripheralGate(SysctrlPeripheralTim3, TRUE);
 
-	base_cfg.enWorkMode = Tim3WorkMode3;
+	base_cfg.enWorkMode = Tim3WorkMode2; // 锯齿波向上计数，保证捕获时间轴单调
 	base_cfg.enCT = Tim3Timer;
 	base_cfg.enPRS = Tim3PCLKDiv64; // 16MHz / 64 = 250kHz
 	base_cfg.enCntDir = Tim3CntUp;

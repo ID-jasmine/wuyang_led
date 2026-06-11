@@ -10,8 +10,7 @@
 #define DEV_SPEED_RPM_GATE_MID_PULSES	  (10u)
 #define DEV_SPEED_RPM_GATE_AVG_COUNT	  (3u)
 #define DEV_SPEED_RPM_TIMEOUT_MS		  (1000u)
-#define DEV_SPEED_RPM_FILTER_SHIFT		  (2u)
-#define DEV_SPEED_RPM_DEFAULT_MEASURE	  DevSpeedRpmMeasureGate
+#define DEV_SPEED_RPM_ADAPTIVE_FILTER_SHIFT (1u)
 #define DEV_SPEED_RPM_DIAG_SHORT_DELTA_US (4000u)
 #define DEV_SPEED_RPM_GATE_SPIKE_NUMERATOR	  (11u)
 #define DEV_SPEED_RPM_GATE_SPIKE_DENOMINATOR	  (10u)
@@ -163,6 +162,7 @@ static void DevSpeedRpm_ResetCaptureDiagState(stc_dev_speed_rpm_state_t *state)
 
 static void DevSpeedRpm_UpdateCaptureDiag1ms(stc_dev_speed_rpm_state_t *state)
 {
+	uint32_t primask;
 	uint32_t delta_pulses;
 
 	if (state->diag_pps_elapsed_ms < 1000u)
@@ -172,11 +172,14 @@ static void DevSpeedRpm_UpdateCaptureDiag1ms(stc_dev_speed_rpm_state_t *state)
 
 	if (state->diag_pps_elapsed_ms >= 1000u)
 	{
+		primask = __get_PRIMASK();
+		__disable_irq();
 		delta_pulses = state->total_pulse_count - state->diag_pps_start_pulse_count;
 		state->diag_pps_start_pulse_count = state->total_pulse_count;
 		state->diag_pps_elapsed_ms = 0u;
 		state->diag_pulse_count_per_sec =
 			(delta_pulses > 0xFFFFu) ? 0xFFFFu : (uint16_t)delta_pulses;
+		__set_PRIMASK(primask);
 	}
 }
 
@@ -321,6 +324,7 @@ static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp
 {
 	en_dev_speed_rpm_id_t id;
 	stc_dev_speed_rpm_state_t *state;
+	boolean_t capture_too_short;
 
 	(void)user_data;
 
@@ -331,13 +335,18 @@ static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp
 	}
 
 	state = &s_astDevSpeedRpmState[id];
-	state->total_pulse_count++;
 	DevSpeedRpm_UpdateCaptureDiag(state, timestamp);
-	if (FALSE == DevSpeedRpm_IsCaptureDeltaTooShort(state, timestamp))
+	capture_too_short = DevSpeedRpm_IsCaptureDeltaTooShort(state, timestamp);
+	if (FALSE == capture_too_short)
 	{
 		DevSpeedRpm_UpdateValidCaptureDiag(state, timestamp);
 	}
+	else
+	{
+		return;
+	}
 
+	state->total_pulse_count++;
 	if (FALSE == state->started)
 	{
 		state->started = TRUE;
@@ -401,9 +410,10 @@ static void DevSpeedRpm_UpdateFreq(en_dev_speed_rpm_id_t id,
 	{
 		s_astDevSpeedRpmState[id].freq_mhz[measure] =
 			(uint32_t)((((uint64_t)s_astDevSpeedRpmState[id].freq_mhz[measure] *
-						 ((1u << DEV_SPEED_RPM_FILTER_SHIFT) - 1u)) +
-						new_freq_mhz + (1u << (DEV_SPEED_RPM_FILTER_SHIFT - 1u))) >>
-					   DEV_SPEED_RPM_FILTER_SHIFT);
+						 ((1u << DEV_SPEED_RPM_ADAPTIVE_FILTER_SHIFT) - 1u)) +
+						new_freq_mhz +
+						(1u << (DEV_SPEED_RPM_ADAPTIVE_FILTER_SHIFT - 1u))) >>
+					   DEV_SPEED_RPM_ADAPTIVE_FILTER_SHIFT);
 	}
 	else
 	{
@@ -614,12 +624,22 @@ static uint32_t
 DevSpeedRpm_GetFreqMilliHzByMeasureImpl(en_dev_speed_rpm_id_t id,
 										en_dev_speed_rpm_measure_t measure)
 {
+	uint32_t primask;
+	uint32_t freq_mhz;
+
 	if ((Ok != DevSpeedRpm_CheckId(id)) || (Ok != DevSpeedRpm_CheckMeasure(measure)))
 	{
 		return 0u;
 	}
 
-	return s_astDevSpeedRpmState[id].freq_mhz[measure];
+	primask = __get_PRIMASK();
+	__disable_irq();
+	freq_mhz = (TRUE == s_astDevSpeedRpmState[id].valid[measure])
+				   ? s_astDevSpeedRpmState[id].freq_mhz[measure]
+				   : 0u;
+	__set_PRIMASK(primask);
+
+	return freq_mhz;
 }
 
 static uint32_t DevSpeedRpm_GetFreqMilliHzImpl(en_dev_speed_rpm_id_t id)
@@ -692,12 +712,20 @@ en_result_t DEV_SpeedRpm_ResetCaptureDiag(en_dev_speed_rpm_id_t id)
 static boolean_t DevSpeedRpm_IsValidByMeasureImpl(en_dev_speed_rpm_id_t id,
 												  en_dev_speed_rpm_measure_t measure)
 {
+	uint32_t primask;
+	boolean_t valid;
+
 	if ((Ok != DevSpeedRpm_CheckId(id)) || (Ok != DevSpeedRpm_CheckMeasure(measure)))
 	{
 		return FALSE;
 	}
 
-	return s_astDevSpeedRpmState[id].valid[measure];
+	primask = __get_PRIMASK();
+	__disable_irq();
+	valid = s_astDevSpeedRpmState[id].valid[measure];
+	__set_PRIMASK(primask);
+
+	return valid;
 }
 
 static boolean_t DevSpeedRpm_IsValidImpl(en_dev_speed_rpm_id_t id)
