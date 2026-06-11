@@ -33,6 +33,7 @@
 #define APP_VEHICLE_GEAR_BLINK_TICKS			 (5u)
 #define APP_VEHICLE_FUEL_FAST_TICKS				 (30u)
 #define APP_VEHICLE_FUEL_SLOW_TICKS				 (300u)
+#define APP_VEHICLE_FUEL_POWERON_CONFIRM_TICKS	 (2u)
 #define APP_VEHICLE_FUEL_INVALID_BARS			 (1u)
 #define APP_VEHICLE_FUEL_RES_CORRECT_NUMERATOR	 (94u)
 #define APP_VEHICLE_FUEL_RES_CORRECT_DENOMINATOR (100u)
@@ -84,6 +85,8 @@ static boolean_t s_bVehicleFuelInited = FALSE;
 static uint8_t s_u8VehicleFuelDisplayBars = 0u;
 static uint16_t s_u16VehicleFuelFastTick = 0u;
 static uint16_t s_u16VehicleFuelSlowTick = 0u;
+static uint8_t s_u8VehicleFuelPoweronCandidate = 0u;
+static uint8_t s_u8VehicleFuelPoweronCandidateTicks = 0u;
 static uint8_t s_u8VehicleGearBlinkTick = 0u;
 static boolean_t s_bVehicleGearBlinkOn = TRUE;
 static uint16_t s_u16VehicleDisplaySpeed = 0u;
@@ -957,6 +960,37 @@ static uint8_t App_Vehicle_GetFuelTargetBars(void)
 	return 8u;
 }
 
+static uint8_t App_Vehicle_GetPoweronFuelBars(uint8_t target_bars)
+{
+	if (FALSE == s_bVehicleFuelInited)
+	{
+		s_bVehicleFuelInited = TRUE;
+		s_u8VehicleFuelDisplayBars = target_bars;
+		s_u8VehicleFuelPoweronCandidate = target_bars;
+		s_u8VehicleFuelPoweronCandidateTicks = 1u;
+		return s_u8VehicleFuelDisplayBars;
+	}
+
+	if (target_bars != s_u8VehicleFuelPoweronCandidate)
+	{
+		s_u8VehicleFuelPoweronCandidate = target_bars;
+		s_u8VehicleFuelPoweronCandidateTicks = 1u;
+	}
+	else if (s_u8VehicleFuelPoweronCandidateTicks <
+			 APP_VEHICLE_FUEL_POWERON_CONFIRM_TICKS)
+	{
+		s_u8VehicleFuelPoweronCandidateTicks++;
+	}
+
+	if (s_u8VehicleFuelPoweronCandidateTicks >=
+		APP_VEHICLE_FUEL_POWERON_CONFIRM_TICKS)
+	{
+		s_u8VehicleFuelDisplayBars = s_u8VehicleFuelPoweronCandidate;
+	}
+
+	return s_u8VehicleFuelDisplayBars;
+}
+
 static uint8_t App_Vehicle_GetCurrentFuelBars(void)
 {
 	uint8_t target_bars;
@@ -965,8 +999,7 @@ static uint8_t App_Vehicle_GetCurrentFuelBars(void)
 	if ((FALSE == s_bVehicleFuelInited) ||
 		(s_u16VehicleFuelFastTick < APP_VEHICLE_FUEL_FAST_TICKS))
 	{
-		s_bVehicleFuelInited = TRUE;
-		s_u8VehicleFuelDisplayBars = target_bars;
+		(void)App_Vehicle_GetPoweronFuelBars(target_bars);
 		if (s_u16VehicleFuelFastTick < APP_VEHICLE_FUEL_FAST_TICKS)
 		{
 			s_u16VehicleFuelFastTick++;
@@ -1153,6 +1186,8 @@ void App_Vehicle_ResetSelfCheck(void)
 	s_bVehicleFuelInited = FALSE;
 	s_u16VehicleFuelFastTick = 0u;
 	s_u16VehicleFuelSlowTick = 0u;
+	s_u8VehicleFuelPoweronCandidate = 0u;
+	s_u8VehicleFuelPoweronCandidateTicks = 0u;
 	s_u8VehicleGearBlinkTick = 0u;
 	s_bVehicleGearBlinkOn = TRUE;
 	s_u16VehicleDisplaySpeed = 0u;

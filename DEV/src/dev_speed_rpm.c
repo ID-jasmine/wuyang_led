@@ -246,6 +246,19 @@ static void DevSpeedRpm_UpdateValidCaptureDiag(stc_dev_speed_rpm_state_t *state,
 	state->diag_has_valid_timestamp = TRUE;
 }
 
+static boolean_t DevSpeedRpm_ShouldDropCapture(en_dev_speed_rpm_id_t id,
+											   stc_dev_speed_rpm_state_t *state,
+											   uint32_t timestamp)
+{
+	if ((DevSpeedRpmIdSpeed == id) &&
+		(TRUE == DevSpeedRpm_IsCaptureDeltaOutlier(state, timestamp)))
+	{
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
 static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp,
 										void *user_data)
 {
@@ -263,7 +276,7 @@ static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp
 	state = &s_astDevSpeedRpmState[id];
 	state->total_pulse_count++;
 	DevSpeedRpm_UpdateCaptureDiag(state, timestamp);
-	if (FALSE == DevSpeedRpm_IsCaptureDeltaOutlier(state, timestamp))
+	if (FALSE == DevSpeedRpm_ShouldDropCapture(id, state, timestamp))
 	{
 		DevSpeedRpm_UpdateValidCaptureDiag(state, timestamp);
 
