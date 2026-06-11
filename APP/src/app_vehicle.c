@@ -35,6 +35,7 @@
 #define APP_VEHICLE_FUEL_SLOW_TICKS				 (300u)
 #define APP_VEHICLE_FUEL_POWERON_CONFIRM_TICKS	 (2u)
 #define APP_VEHICLE_FUEL_INVALID_BARS			 (1u)
+#define APP_VEHICLE_FUEL_HYSTERESIS_OHM		 (2u)
 #define APP_VEHICLE_FUEL_RES_CORRECT_NUMERATOR	 (94u)
 #define APP_VEHICLE_FUEL_RES_CORRECT_DENOMINATOR (100u)
 #define APP_VEHICLE_ODOMETER_PULSES_PER_KM		 (2800u)
@@ -927,6 +928,77 @@ static uint8_t App_Vehicle_GetFuelTargetBars(void)
 		(uint16_t)(((uint32_t)resistance_ohm * APP_VEHICLE_FUEL_RES_CORRECT_NUMERATOR +
 					(APP_VEHICLE_FUEL_RES_CORRECT_DENOMINATOR / 2u)) /
 				   APP_VEHICLE_FUEL_RES_CORRECT_DENOMINATOR);
+
+	if (TRUE == s_bVehicleFuelInited)
+	{
+		switch (s_u8VehicleFuelDisplayBars)
+		{
+		case 1u:
+			if (resistance_ohm > (76u - APP_VEHICLE_FUEL_HYSTERESIS_OHM))
+			{
+				return 1u;
+			}
+			break;
+
+		case 2u:
+			if ((resistance_ohm <= (76u + APP_VEHICLE_FUEL_HYSTERESIS_OHM)) &&
+				(resistance_ohm > (66u - APP_VEHICLE_FUEL_HYSTERESIS_OHM)))
+			{
+				return 2u;
+			}
+			break;
+
+		case 3u:
+			if ((resistance_ohm <= (66u + APP_VEHICLE_FUEL_HYSTERESIS_OHM)) &&
+				(resistance_ohm > (54u - APP_VEHICLE_FUEL_HYSTERESIS_OHM)))
+			{
+				return 3u;
+			}
+			break;
+
+		case 4u:
+			if ((resistance_ohm <= (54u + APP_VEHICLE_FUEL_HYSTERESIS_OHM)) &&
+				(resistance_ohm > (43u - APP_VEHICLE_FUEL_HYSTERESIS_OHM)))
+			{
+				return 4u;
+			}
+			break;
+
+		case 5u:
+			if ((resistance_ohm <= (43u + APP_VEHICLE_FUEL_HYSTERESIS_OHM)) &&
+				(resistance_ohm > (31u - APP_VEHICLE_FUEL_HYSTERESIS_OHM)))
+			{
+				return 5u;
+			}
+			break;
+
+		case 6u:
+			if ((resistance_ohm <= (31u + APP_VEHICLE_FUEL_HYSTERESIS_OHM)) &&
+				(resistance_ohm > (18u - APP_VEHICLE_FUEL_HYSTERESIS_OHM)))
+			{
+				return 6u;
+			}
+			break;
+
+		case 7u:
+			if ((resistance_ohm <= (18u + APP_VEHICLE_FUEL_HYSTERESIS_OHM)) &&
+				(resistance_ohm > (10u - APP_VEHICLE_FUEL_HYSTERESIS_OHM)))
+			{
+				return 7u;
+			}
+			break;
+
+		case 8u:
+			if (resistance_ohm <= (10u + APP_VEHICLE_FUEL_HYSTERESIS_OHM))
+			{
+				return 8u;
+			}
+			break;
+
+		default:
+			break;
+		}
+	}
 
 	if (resistance_ohm > 76u)
 	{
