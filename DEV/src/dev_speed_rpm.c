@@ -1,17 +1,17 @@
 #include "dev_speed_rpm.h"
 #include "bsp_time_capture.h"
 
-#define DEV_SPEED_RPM_MIN_WINDOW_TICKS (150000u)
-#define DEV_SPEED_RPM_MIN_PULSE_COUNT  (24u)
-#define DEV_SPEED_RPM_GATE_FAST_MS	   (500u)
-#define DEV_SPEED_RPM_GATE_MID_MS	   (500u)
-#define DEV_SPEED_RPM_GATE_SLOW_MS	   (1000u)
-#define DEV_SPEED_RPM_GATE_FAST_PULSES (15u)
-#define DEV_SPEED_RPM_GATE_MID_PULSES  (10u)
-#define DEV_SPEED_RPM_GATE_AVG_COUNT   (3u)
-#define DEV_SPEED_RPM_TIMEOUT_MS	   (1000u)
-#define DEV_SPEED_RPM_FILTER_SHIFT	   (2u)
-#define DEV_SPEED_RPM_DEFAULT_MEASURE  DevSpeedRpmMeasureGate
+#define DEV_SPEED_RPM_MIN_WINDOW_TICKS	  (150000u)
+#define DEV_SPEED_RPM_MIN_PULSE_COUNT	  (24u)
+#define DEV_SPEED_RPM_GATE_FAST_MS		  (50u)
+#define DEV_SPEED_RPM_GATE_MID_MS		  (50u)
+#define DEV_SPEED_RPM_GATE_SLOW_MS		  (1000u)
+#define DEV_SPEED_RPM_GATE_FAST_PULSES	  (15u)
+#define DEV_SPEED_RPM_GATE_MID_PULSES	  (10u)
+#define DEV_SPEED_RPM_GATE_AVG_COUNT	  (3u)
+#define DEV_SPEED_RPM_TIMEOUT_MS		  (1000u)
+#define DEV_SPEED_RPM_FILTER_SHIFT		  (2u)
+#define DEV_SPEED_RPM_DEFAULT_MEASURE	  DevSpeedRpmMeasureGate
 #define DEV_SPEED_RPM_DIAG_SHORT_DELTA_US (4000u)
 
 typedef struct
@@ -391,8 +391,7 @@ static void DevSpeedRpm_CalcAdaptiveFreq(en_dev_speed_rpm_id_t id,
 		return;
 	}
 
-	freq_mhz = (uint32_t)(((uint64_t)snapshot->pulse_count * s_u32TimerClockHz *
-						   1000u) /
+	freq_mhz = (uint32_t)(((uint64_t)snapshot->pulse_count * s_u32TimerClockHz * 1000u) /
 						  elapsed_ticks);
 	DevSpeedRpm_UpdateFreq(id, DevSpeedRpmMeasureAdaptive, freq_mhz);
 }
@@ -612,9 +611,8 @@ en_result_t DEV_SpeedRpm_ResetCaptureDiag(en_dev_speed_rpm_id_t id)
 	return Ok;
 }
 
-static boolean_t
-DevSpeedRpm_IsValidByMeasureImpl(en_dev_speed_rpm_id_t id,
-								 en_dev_speed_rpm_measure_t measure)
+static boolean_t DevSpeedRpm_IsValidByMeasureImpl(en_dev_speed_rpm_id_t id,
+												  en_dev_speed_rpm_measure_t measure)
 {
 	if ((Ok != DevSpeedRpm_CheckId(id)) || (Ok != DevSpeedRpm_CheckMeasure(measure)))
 	{

@@ -27,7 +27,7 @@
 #define APP_VEHICLE_RPM_RATIO_DENOMINATOR		 (100u)
 #define APP_VEHICLE_RPM_PER_BAR					 (500u)
 #define APP_VEHICLE_DISPLAY_CONFIRM_TICKS		 (2u)
-#define APP_VEHICLE_SPEED_DISPLAY_STEP			 (3u)
+#define APP_VEHICLE_SPEED_DISPLAY_STEP			 (10u)
 #define APP_VEHICLE_SPEED_DISPLAY_DEADBAND		 (0u)
 #define APP_VEHICLE_SPEED_CALC_SCALE			 (10u)
 #define APP_VEHICLE_GEAR_BLINK_TICKS			 (5u)
@@ -982,8 +982,7 @@ static uint8_t App_Vehicle_GetPoweronFuelBars(uint8_t target_bars)
 		s_u8VehicleFuelPoweronCandidateTicks++;
 	}
 
-	if (s_u8VehicleFuelPoweronCandidateTicks >=
-		APP_VEHICLE_FUEL_POWERON_CONFIRM_TICKS)
+	if (s_u8VehicleFuelPoweronCandidateTicks >= APP_VEHICLE_FUEL_POWERON_CONFIRM_TICKS)
 	{
 		s_u8VehicleFuelDisplayBars = s_u8VehicleFuelPoweronCandidate;
 	}
