@@ -13,6 +13,9 @@
 #define DEV_SPEED_RPM_FILTER_SHIFT		  (2u)
 #define DEV_SPEED_RPM_DEFAULT_MEASURE	  DevSpeedRpmMeasureGate
 #define DEV_SPEED_RPM_DIAG_SHORT_DELTA_US (4000u)
+#define DEV_SPEED_RPM_GATE_SPIKE_NUMERATOR	  (11u)
+#define DEV_SPEED_RPM_GATE_SPIKE_DENOMINATOR	  (10u)
+#define DEV_SPEED_RPM_GATE_SPIKE_CONFIRM_COUNT (2u)
 
 typedef struct
 {
@@ -42,6 +45,8 @@ typedef struct
 	uint32_t gate_freq_sum;
 	uint8_t gate_freq_index;
 	uint8_t gate_freq_count;
+	uint32_t gate_spike_candidate_freq;
+	uint8_t gate_spike_candidate_count;
 	uint32_t freq_mhz[DevSpeedRpmMeasureCount];
 	boolean_t valid[DevSpeedRpmMeasureCount];
 } stc_dev_speed_rpm_state_t;
@@ -120,6 +125,8 @@ static void DevSpeedRpm_ResetGateAverage(stc_dev_speed_rpm_state_t *state)
 	state->gate_freq_sum = 0u;
 	state->gate_freq_index = 0u;
 	state->gate_freq_count = 0u;
+	state->gate_spike_candidate_freq = 0u;
+	state->gate_spike_candidate_count = 0u;
 }
 
 static void DevSpeedRpm_SetInvalid(en_dev_speed_rpm_id_t id)
@@ -243,6 +250,47 @@ static void DevSpeedRpm_UpdateValidCaptureDiag(stc_dev_speed_rpm_state_t *state,
 	state->diag_has_valid_timestamp = TRUE;
 }
 
+static boolean_t DevSpeedRpm_ShouldIgnoreGateSpike(stc_dev_speed_rpm_state_t *state,
+												   uint32_t new_freq_mhz)
+{
+	uint32_t current_freq_mhz;
+	uint32_t spike_threshold_mhz;
+
+	if ((FALSE == state->valid[DevSpeedRpmMeasureGate]) ||
+		(0u == state->freq_mhz[DevSpeedRpmMeasureGate]))
+	{
+		state->gate_spike_candidate_freq = 0u;
+		state->gate_spike_candidate_count = 0u;
+		return FALSE;
+	}
+
+	current_freq_mhz = state->freq_mhz[DevSpeedRpmMeasureGate];
+	spike_threshold_mhz =
+		(uint32_t)(((uint64_t)current_freq_mhz *
+					DEV_SPEED_RPM_GATE_SPIKE_NUMERATOR) /
+				   DEV_SPEED_RPM_GATE_SPIKE_DENOMINATOR);
+	if (new_freq_mhz <= spike_threshold_mhz)
+	{
+		state->gate_spike_candidate_freq = 0u;
+		state->gate_spike_candidate_count = 0u;
+		return FALSE;
+	}
+
+	state->gate_spike_candidate_freq = new_freq_mhz;
+	if (state->gate_spike_candidate_count < DEV_SPEED_RPM_GATE_SPIKE_CONFIRM_COUNT)
+	{
+		state->gate_spike_candidate_count++;
+	}
+
+	if (state->gate_spike_candidate_count < DEV_SPEED_RPM_GATE_SPIKE_CONFIRM_COUNT)
+	{
+		return TRUE;
+	}
+
+	DevSpeedRpm_ResetGateAverage(state);
+	return FALSE;
+}
+
 static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp,
 										void *user_data)
 {
@@ -294,6 +342,11 @@ static void DevSpeedRpm_UpdateFreq(en_dev_speed_rpm_id_t id,
 	if (DevSpeedRpmMeasureGate == measure)
 	{
 		stc_dev_speed_rpm_state_t *state = &s_astDevSpeedRpmState[id];
+
+		if (TRUE == DevSpeedRpm_ShouldIgnoreGateSpike(state, new_freq_mhz))
+		{
+			return;
+		}
 
 		if (state->gate_freq_count >= DEV_SPEED_RPM_GATE_AVG_COUNT)
 		{
