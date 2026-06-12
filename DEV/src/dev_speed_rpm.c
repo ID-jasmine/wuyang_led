@@ -406,7 +406,7 @@ static void DevSpeedRpm_UpdateFreq(en_dev_speed_rpm_id_t id,
 		return;
 	}
 
-	if (TRUE == s_astDevSpeedRpmState[id].valid[measure])
+	if ((DevSpeedRpmIdSpeed == id) && (TRUE == s_astDevSpeedRpmState[id].valid[measure]))
 	{
 		s_astDevSpeedRpmState[id].freq_mhz[measure] =
 			(uint32_t)((((uint64_t)s_astDevSpeedRpmState[id].freq_mhz[measure] *

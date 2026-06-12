@@ -36,6 +36,7 @@
 #define APP_VEHICLE_SPEED_DISPLAY_DEADBAND		 (0u)
 #define APP_VEHICLE_SPEED_CALC_SCALE			 (10u)
 #define APP_VEHICLE_GEAR_BLINK_TICKS			 (5u)
+#define APP_VEHICLE_CLOCK_COLON_BLINK_TICKS		 (20u)
 #define APP_VEHICLE_FUEL_FAST_TICKS				 (30u)
 #define APP_VEHICLE_FUEL_SLOW_TICKS				 (300u)
 #define APP_VEHICLE_FUEL_POWERON_CONFIRM_TICKS	 (2u)
@@ -141,6 +142,8 @@ static boolean_t s_bVehicleClockValid = FALSE;
 static boolean_t s_bVehicleClockSettingMode = FALSE;
 static boolean_t s_bVehicleClockSettingHour = TRUE;
 static boolean_t s_bVehicleClockBlinkState = FALSE;
+static uint8_t s_u8VehicleClockColonBlinkTick = 0u;
+static boolean_t s_bVehicleClockColonOn = TRUE;
 #if (APP_VEHICLE_CAPTURE_DIAG_ON_ODO == 0u)
 static uint8_t s_u8VehicleClockBlinkTick = 0;
 #endif
@@ -662,7 +665,7 @@ static void App_Vehicle_ShowClock(void)
 		App_Vehicle_UpdateClockCache();
 	}
 
-	LedPanel_Set(LedPanelIdClockColon, TRUE);
+	LedPanel_Set(LedPanelIdClockColon, s_bVehicleClockColonOn);
 	if (TRUE == s_bVehicleClockValid)
 	{
 		uint8_t show_hour = s_u8VehicleClockHour;
@@ -681,6 +684,16 @@ static void App_Vehicle_ShowClock(void)
 		}
 
 		(void)LedPanel_ShowClock(show_hour, show_minute);
+	}
+}
+
+static void App_Vehicle_UpdateClockColonBlink(void)
+{
+	s_u8VehicleClockColonBlinkTick++;
+	if (s_u8VehicleClockColonBlinkTick >= APP_VEHICLE_CLOCK_COLON_BLINK_TICKS)
+	{
+		s_u8VehicleClockColonBlinkTick = 0u;
+		s_bVehicleClockColonOn = (TRUE == s_bVehicleClockColonOn) ? FALSE : TRUE;
 	}
 }
 
@@ -1219,6 +1232,7 @@ static void App_Vehicle_ShowSelfCheckFrame(uint16_t tick)
 static void App_Vehicle_ShowNormalFrame(void)
 {
 	App_Vehicle_UpdateGearBlink();
+	App_Vehicle_UpdateClockColonBlink();
 #if (APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO == 0u)
 	App_Vehicle_UpdateMileage();
 #else
@@ -1264,6 +1278,8 @@ void App_Vehicle_ResetSelfCheck(void)
 	s_u8VehicleFuelPoweronCandidateTicks = 0u;
 	s_u8VehicleGearBlinkTick = 0u;
 	s_bVehicleGearBlinkOn = TRUE;
+	s_u8VehicleClockColonBlinkTick = 0u;
+	s_bVehicleClockColonOn = TRUE;
 	s_u16VehicleDisplaySpeed = 0u;
 	s_u16VehicleSpeedCandidate = 0u;
 	s_u8VehicleSpeedCandidateTicks = 0u;
