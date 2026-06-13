@@ -11,7 +11,7 @@
 #define DEV_SPEED_RPM_GATE_AVG_COUNT	  (3u)
 #define DEV_SPEED_RPM_TIMEOUT_MS		  (1000u)
 #define DEV_SPEED_RPM_ADAPTIVE_FILTER_SHIFT (1u)
-#define DEV_SPEED_RPM_DIAG_SHORT_DELTA_US (4000u)
+#define DEV_SPEED_RPM_MIN_VALID_DELTA_US  (4000u)
 #define DEV_SPEED_RPM_GATE_SPIKE_NUMERATOR	  (11u)
 #define DEV_SPEED_RPM_GATE_SPIKE_DENOMINATOR	  (10u)
 #define DEV_SPEED_RPM_GATE_SPIKE_CONFIRM_COUNT (2u)
@@ -28,20 +28,8 @@ typedef struct
 	volatile uint32_t total_pulse_count;
 	volatile uint16_t timeout_count;
 	volatile boolean_t started;
-	volatile uint32_t diag_last_timestamp;
-	volatile uint32_t diag_last_delta_ticks;
-	volatile uint32_t diag_valid_last_timestamp;
-	volatile uint32_t diag_valid_delta_ticks;
-	volatile uint32_t diag_min_delta_ticks;
-	volatile uint32_t diag_max_delta_ticks;
-	volatile uint32_t diag_pps_start_pulse_count;
-	volatile uint16_t diag_pps_elapsed_ms;
-	volatile uint16_t diag_pulse_count_per_sec;
-	volatile uint16_t diag_short_delta_count;
-	volatile boolean_t diag_has_timestamp;
-	volatile boolean_t diag_has_delta;
-	volatile boolean_t diag_has_valid_timestamp;
-	volatile boolean_t diag_has_valid_delta;
+	volatile uint32_t last_valid_timestamp;
+	volatile boolean_t has_valid_timestamp;
 	uint32_t gate_freq_samples[DEV_SPEED_RPM_GATE_AVG_COUNT];
 	uint32_t gate_freq_sum;
 	uint8_t gate_freq_index;
@@ -142,83 +130,6 @@ static void DevSpeedRpm_SetInvalid(en_dev_speed_rpm_id_t id)
 	DevSpeedRpm_ResetGateAverage(&s_astDevSpeedRpmState[id]);
 }
 
-static void DevSpeedRpm_ResetCaptureDiagState(stc_dev_speed_rpm_state_t *state)
-{
-	state->diag_last_timestamp = 0u;
-	state->diag_last_delta_ticks = 0u;
-	state->diag_valid_last_timestamp = 0u;
-	state->diag_valid_delta_ticks = 0u;
-	state->diag_min_delta_ticks = 0u;
-	state->diag_max_delta_ticks = 0u;
-	state->diag_pps_start_pulse_count = state->total_pulse_count;
-	state->diag_pps_elapsed_ms = 0u;
-	state->diag_pulse_count_per_sec = 0u;
-	state->diag_short_delta_count = 0u;
-	state->diag_has_timestamp = FALSE;
-	state->diag_has_delta = FALSE;
-	state->diag_has_valid_timestamp = FALSE;
-	state->diag_has_valid_delta = FALSE;
-}
-
-static void DevSpeedRpm_UpdateCaptureDiag1ms(stc_dev_speed_rpm_state_t *state)
-{
-	uint32_t primask;
-	uint32_t delta_pulses;
-
-	if (state->diag_pps_elapsed_ms < 1000u)
-	{
-		state->diag_pps_elapsed_ms++;
-	}
-
-	if (state->diag_pps_elapsed_ms >= 1000u)
-	{
-		primask = __get_PRIMASK();
-		__disable_irq();
-		delta_pulses = state->total_pulse_count - state->diag_pps_start_pulse_count;
-		state->diag_pps_start_pulse_count = state->total_pulse_count;
-		state->diag_pps_elapsed_ms = 0u;
-		state->diag_pulse_count_per_sec =
-			(delta_pulses > 0xFFFFu) ? 0xFFFFu : (uint16_t)delta_pulses;
-		__set_PRIMASK(primask);
-	}
-}
-
-static void DevSpeedRpm_UpdateCaptureDiag(stc_dev_speed_rpm_state_t *state,
-										  uint32_t timestamp)
-{
-	uint32_t delta_ticks;
-	uint32_t short_delta_ticks;
-
-	if (TRUE == state->diag_has_timestamp)
-	{
-		delta_ticks = timestamp - state->diag_last_timestamp;
-		state->diag_last_delta_ticks = delta_ticks;
-		if ((0u == state->diag_min_delta_ticks) ||
-			(delta_ticks < state->diag_min_delta_ticks))
-		{
-			state->diag_min_delta_ticks = delta_ticks;
-		}
-		if (delta_ticks > state->diag_max_delta_ticks)
-		{
-			state->diag_max_delta_ticks = delta_ticks;
-		}
-		if (0u != s_u32TimerClockHz)
-		{
-			short_delta_ticks =
-				(s_u32TimerClockHz * DEV_SPEED_RPM_DIAG_SHORT_DELTA_US) / 1000000u;
-			if ((delta_ticks > 0u) && (delta_ticks < short_delta_ticks) &&
-				(state->diag_short_delta_count < 0xFFFFu))
-			{
-				state->diag_short_delta_count++;
-			}
-		}
-		state->diag_has_delta = TRUE;
-	}
-
-	state->diag_last_timestamp = timestamp;
-	state->diag_has_timestamp = TRUE;
-}
-
 static boolean_t
 DevSpeedRpm_IsCaptureDeltaTooShort(const stc_dev_speed_rpm_state_t *state,
 								   uint32_t timestamp)
@@ -226,14 +137,14 @@ DevSpeedRpm_IsCaptureDeltaTooShort(const stc_dev_speed_rpm_state_t *state,
 	uint32_t delta_ticks;
 	uint32_t short_delta_ticks;
 
-	if ((FALSE == state->diag_has_valid_timestamp) || (0u == s_u32TimerClockHz))
+	if ((FALSE == state->has_valid_timestamp) || (0u == s_u32TimerClockHz))
 	{
 		return FALSE;
 	}
 
-	delta_ticks = timestamp - state->diag_valid_last_timestamp;
+	delta_ticks = timestamp - state->last_valid_timestamp;
 	short_delta_ticks =
-		(s_u32TimerClockHz * DEV_SPEED_RPM_DIAG_SHORT_DELTA_US) / 1000000u;
+		(s_u32TimerClockHz * DEV_SPEED_RPM_MIN_VALID_DELTA_US) / 1000000u;
 	if ((delta_ticks > 0u) && (delta_ticks < short_delta_ticks))
 	{
 		return TRUE;
@@ -242,17 +153,11 @@ DevSpeedRpm_IsCaptureDeltaTooShort(const stc_dev_speed_rpm_state_t *state,
 	return FALSE;
 }
 
-static void DevSpeedRpm_UpdateValidCaptureDiag(stc_dev_speed_rpm_state_t *state,
-											   uint32_t timestamp)
+static void DevSpeedRpm_UpdateValidCaptureState(stc_dev_speed_rpm_state_t *state,
+												uint32_t timestamp)
 {
-	if (TRUE == state->diag_has_valid_timestamp)
-	{
-		state->diag_valid_delta_ticks = timestamp - state->diag_valid_last_timestamp;
-		state->diag_has_valid_delta = TRUE;
-	}
-
-	state->diag_valid_last_timestamp = timestamp;
-	state->diag_has_valid_timestamp = TRUE;
+	state->last_valid_timestamp = timestamp;
+	state->has_valid_timestamp = TRUE;
 }
 
 static boolean_t DevSpeedRpm_ShouldIgnoreGateSpike(stc_dev_speed_rpm_state_t *state,
@@ -324,7 +229,6 @@ static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp
 {
 	en_dev_speed_rpm_id_t id;
 	stc_dev_speed_rpm_state_t *state;
-	boolean_t capture_too_short;
 
 	(void)user_data;
 
@@ -335,16 +239,11 @@ static void DevSpeedRpm_CaptureCallback(bsp_tim3_cap_ch_t ch, uint32_t timestamp
 	}
 
 	state = &s_astDevSpeedRpmState[id];
-	DevSpeedRpm_UpdateCaptureDiag(state, timestamp);
-	capture_too_short = DevSpeedRpm_IsCaptureDeltaTooShort(state, timestamp);
-	if (FALSE == capture_too_short)
-	{
-		DevSpeedRpm_UpdateValidCaptureDiag(state, timestamp);
-	}
-	else
+	if (TRUE == DevSpeedRpm_IsCaptureDeltaTooShort(state, timestamp))
 	{
 		return;
 	}
+	DevSpeedRpm_UpdateValidCaptureState(state, timestamp);
 
 	state->total_pulse_count++;
 	if (FALSE == state->started)
@@ -595,7 +494,8 @@ static en_result_t DevSpeedRpm_InitImpl(void)
 		s_astDevSpeedRpmState[i].total_pulse_count = 0u;
 		s_astDevSpeedRpmState[i].timeout_count = 0u;
 		s_astDevSpeedRpmState[i].started = FALSE;
-		DevSpeedRpm_ResetCaptureDiagState(&s_astDevSpeedRpmState[i]);
+		s_astDevSpeedRpmState[i].last_valid_timestamp = 0u;
+		s_astDevSpeedRpmState[i].has_valid_timestamp = FALSE;
 		DevSpeedRpm_ResetGateAverage(&s_astDevSpeedRpmState[i]);
 		DevSpeedRpm_SetInvalid((en_dev_speed_rpm_id_t)i);
 	}
@@ -616,7 +516,6 @@ static void DevSpeedRpm_Task1msImpl(void)
 	{
 		DevSpeedRpm_TakeSnapshot((en_dev_speed_rpm_id_t)i, &snapshot);
 		DevSpeedRpm_CalcFreq((en_dev_speed_rpm_id_t)i, &snapshot);
-		DevSpeedRpm_UpdateCaptureDiag1ms(&s_astDevSpeedRpmState[i]);
 	}
 }
 
@@ -663,50 +562,6 @@ static uint32_t DevSpeedRpm_GetPulseCountImpl(en_dev_speed_rpm_id_t id)
 	__set_PRIMASK(primask);
 
 	return pulse_count;
-}
-
-en_result_t DEV_SpeedRpm_GetCaptureDiag(en_dev_speed_rpm_id_t id,
-										stc_dev_speed_rpm_capture_diag_t *diag)
-{
-	uint32_t primask;
-
-	if ((NULL == diag) || (Ok != DevSpeedRpm_CheckId(id)))
-	{
-		return ErrorInvalidParameter;
-	}
-
-	primask = __get_PRIMASK();
-	__disable_irq();
-	diag->total_pulse_count = s_astDevSpeedRpmState[id].total_pulse_count;
-	diag->last_timestamp = s_astDevSpeedRpmState[id].diag_last_timestamp;
-	diag->last_delta_ticks = s_astDevSpeedRpmState[id].diag_last_delta_ticks;
-	diag->valid_delta_ticks = s_astDevSpeedRpmState[id].diag_valid_delta_ticks;
-	diag->min_delta_ticks = s_astDevSpeedRpmState[id].diag_min_delta_ticks;
-	diag->max_delta_ticks = s_astDevSpeedRpmState[id].diag_max_delta_ticks;
-	diag->short_delta_count = s_astDevSpeedRpmState[id].diag_short_delta_count;
-	diag->pulse_count_per_sec = s_astDevSpeedRpmState[id].diag_pulse_count_per_sec;
-	diag->has_delta = s_astDevSpeedRpmState[id].diag_has_delta;
-	diag->has_valid_delta = s_astDevSpeedRpmState[id].diag_has_valid_delta;
-	__set_PRIMASK(primask);
-
-	return Ok;
-}
-
-en_result_t DEV_SpeedRpm_ResetCaptureDiag(en_dev_speed_rpm_id_t id)
-{
-	uint32_t primask;
-
-	if (Ok != DevSpeedRpm_CheckId(id))
-	{
-		return ErrorInvalidParameter;
-	}
-
-	primask = __get_PRIMASK();
-	__disable_irq();
-	DevSpeedRpm_ResetCaptureDiagState(&s_astDevSpeedRpmState[id]);
-	__set_PRIMASK(primask);
-
-	return Ok;
 }
 
 static boolean_t DevSpeedRpm_IsValidByMeasureImpl(en_dev_speed_rpm_id_t id,

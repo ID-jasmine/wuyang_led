@@ -49,7 +49,6 @@
 #define APP_VEHICLE_TRIP_MAX_TENTHS			   (9999u)
 #define APP_VEHICLE_TOTAL_MAX_TENTHS		   (9999990u)
 #define APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO (0u)
-#define APP_VEHICLE_CAPTURE_DIAG_ON_ODO		   (0u)
 #define APP_VEHICLE_TEST_SHOW_LIGHT_RAW_ON_ODO (0u)
 #define APP_VEHICLE_FREQ_MEASURE			   DEV_SPEED_RPM_DEFAULT_MEASURE
 #define APP_VEHICLE_BRIGHTNESS_DARK_RAW		   (819u)
@@ -66,17 +65,6 @@ typedef struct
 	uint16_t input;
 	uint16_t output;
 } stc_app_vehicle_speed_map_t;
-
-#if (APP_VEHICLE_CAPTURE_DIAG_ON_ODO != 0u)
-typedef enum
-{
-	AppVehicleCaptureDiagPageTimestamp = 0u,
-	AppVehicleCaptureDiagPageRawDelta,
-	AppVehicleCaptureDiagPageValidDelta,
-	AppVehicleCaptureDiagPagePulsePerSec,
-	AppVehicleCaptureDiagPageCount,
-} en_app_vehicle_capture_diag_page_t;
-#endif
 
 static boolean_t s_bVehicleSelfCheckStarted = FALSE;
 static uint16_t s_u16VehicleSelfCheckTick = 0u;
@@ -105,10 +93,6 @@ static uint8_t s_u8VehicleRpmBarsCandidate = 0u;
 static uint8_t s_u8VehicleRpmBarsCandidateTicks = 0u;
 static boolean_t s_bVehicleRpmBarsDisplayInited = FALSE;
 static uint8_t s_u8VehicleBrightnessPercent = APP_VEHICLE_BRIGHTNESS_MAX;
-#if (APP_VEHICLE_CAPTURE_DIAG_ON_ODO != 0u)
-static en_app_vehicle_capture_diag_page_t s_enVehicleCaptureDiagPage =
-	AppVehicleCaptureDiagPageTimestamp;
-#endif
 #if (APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO != 0u)
 static uint32_t s_u32VehicleTestLastSpeedPulseCount = 0u;
 static uint32_t s_u32VehicleTestLastRpmPulseCount = 0u;
@@ -144,9 +128,7 @@ static boolean_t s_bVehicleClockSettingHour = TRUE;
 static boolean_t s_bVehicleClockBlinkState = FALSE;
 static uint8_t s_u8VehicleClockColonBlinkTick = 0u;
 static boolean_t s_bVehicleClockColonOn = TRUE;
-#if (APP_VEHICLE_CAPTURE_DIAG_ON_ODO == 0u)
 static uint8_t s_u8VehicleClockBlinkTick = 0;
-#endif
 
 static en_result_t App_Vehicle_SetLinearList(const uint8_t *indices, uint8_t count,
 											 boolean_t level)
@@ -553,61 +535,9 @@ static void App_Vehicle_UpdateTestFreqX100(void)
 }
 #endif
 
-#if (APP_VEHICLE_CAPTURE_DIAG_ON_ODO != 0u)
-static uint32_t App_Vehicle_ClampDiagDisplayValue(uint32_t value)
-{
-	return value % 1000000u;
-}
-
-static void App_Vehicle_ShowCaptureDiag(void)
-{
-	stc_dev_speed_rpm_capture_diag_t diag;
-	uint32_t value = 0u;
-
-	(void)DEV_SpeedRpm_GetCaptureDiag(DevSpeedRpmIdSpeed, &diag);
-
-	LedPanel_Set(LedPanelIdOdo, FALSE);
-	LedPanel_Set(LedPanelIdTrip, FALSE);
-	LedPanel_Set(LedPanelIdMileageKm, FALSE);
-	LedPanel_Set(LedPanelIdMileageMile, FALSE);
-
-	switch (s_enVehicleCaptureDiagPage)
-	{
-	case AppVehicleCaptureDiagPageTimestamp:
-		LedPanel_Set(LedPanelIdOdo, TRUE);
-		LedPanel_Set(LedPanelIdMileageKm, TRUE);
-		value = diag.last_timestamp;
-		break;
-
-	case AppVehicleCaptureDiagPageRawDelta:
-		LedPanel_Set(LedPanelIdOdo, TRUE);
-		LedPanel_Set(LedPanelIdMileageMile, TRUE);
-		value = (TRUE == diag.has_delta) ? diag.last_delta_ticks : 0u;
-		break;
-
-	case AppVehicleCaptureDiagPageValidDelta:
-		LedPanel_Set(LedPanelIdOdo, TRUE);
-		LedPanel_Set(LedPanelIdTrip, TRUE);
-		value = (TRUE == diag.has_valid_delta) ? diag.valid_delta_ticks : 0u;
-		break;
-
-	case AppVehicleCaptureDiagPagePulsePerSec:
-	default:
-		LedPanel_Set(LedPanelIdTrip, TRUE);
-		LedPanel_Set(LedPanelIdMileageKm, TRUE);
-		value = diag.pulse_count_per_sec;
-		break;
-	}
-
-	(void)LedPanel_ShowTotalOdometer(App_Vehicle_ClampDiagDisplayValue(value));
-}
-#endif
-
 static void App_Vehicle_ShowMileage(void)
 {
-#if (APP_VEHICLE_CAPTURE_DIAG_ON_ODO != 0u)
-	App_Vehicle_ShowCaptureDiag();
-#elif (APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO != 0u)
+#if (APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO != 0u)
 	LedPanel_Set(LedPanelIdOdo, TRUE);
 	(void)LedPanel_ShowTotalOdometer(s_u32VehicleTestFreqX100);
 #elif (APP_VEHICLE_TEST_SHOW_LIGHT_RAW_ON_ODO != 0u)
@@ -1334,20 +1264,6 @@ static void App_Vehicle_ProcessButtons(void)
 	en_drv_button_event_t eventK2 = DRV_Button_GetEvent(DrvButtonIdK2);
 	en_drv_button_event_t eventBoth = DRV_Button_GetEvent(DrvButtonIdBoth);
 
-#if (APP_VEHICLE_CAPTURE_DIAG_ON_ODO != 0u)
-	if ((eventK1 != DrvButtonEventNone) || (eventK2 != DrvButtonEventNone) ||
-		(eventBoth != DrvButtonEventNone))
-	{
-		s_enVehicleCaptureDiagPage =
-			(en_app_vehicle_capture_diag_page_t)(s_enVehicleCaptureDiagPage + 1u);
-		if (s_enVehicleCaptureDiagPage >= AppVehicleCaptureDiagPageCount)
-		{
-			s_enVehicleCaptureDiagPage = AppVehicleCaptureDiagPageTimestamp;
-		}
-	}
-	return;
-#else
-
 	if (s_bVehicleClockSettingMode)
 	{
 		if (DRV_Button_IsTimeout10s())
@@ -1431,7 +1347,6 @@ static void App_Vehicle_ProcessButtons(void)
 			}
 		}
 	}
-#endif
 }
 
 void App_Vehicle_Task10ms(void)
