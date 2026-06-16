@@ -110,6 +110,7 @@ int32_t main(void)
 				BSP_WDT_Feed();
 
 				Bsp_Gpio_Init();
+				(void)DEV_SpeedRpm_Init();
 				(void)DRV_EEPROM_Init();
 				DRV_ADC_Wakeup();
 

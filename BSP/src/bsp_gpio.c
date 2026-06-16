@@ -116,6 +116,11 @@ static const stc_bsp_gpio_nc_pin_cfg_t s_astBspGpioNcPinCfg[] = {
 	{GpioPortA, GpioPin15}, {GpioPortA, GpioPin12}, {GpioPortA, GpioPin11},
 };
 
+static const stc_bsp_gpio_nc_pin_cfg_t s_astBspGpioSleepAnalogPinCfg[] = {
+	{GpioPortA, GpioPin9},
+	{GpioPortA, GpioPin10},
+};
+
 static const en_bsp_gpio_id_t s_aBspGpioSleepPinIds[] = {
 	BspGpioIdPositionLamp, BspGpioIdSwK1,  BspGpioIdSwK2,		 BspGpioIdGearN,
 	BspGpioIdGear1,		   BspGpioIdGear2, BspGpioIdGear3,		 BspGpioIdGear4,
@@ -131,6 +136,8 @@ static const en_bsp_gpio_id_t s_aBspGpioSleepDefaultOutputIds[] = {
 enum
 {
 	BspGpioNcPinCount = sizeof(s_astBspGpioNcPinCfg) / sizeof(s_astBspGpioNcPinCfg[0]),
+	BspGpioSleepAnalogPinCount =
+		sizeof(s_astBspGpioSleepAnalogPinCfg) / sizeof(s_astBspGpioSleepAnalogPinCfg[0]),
 	BspGpioSleepPinCount =
 		sizeof(s_aBspGpioSleepPinIds) / sizeof(s_aBspGpioSleepPinIds[0]),
 	BspGpioSleepDefaultOutputCount = sizeof(s_aBspGpioSleepDefaultOutputIds) /
@@ -298,6 +305,16 @@ static en_result_t BspGpio_InitSleepPinsImpl(void)
 	for (i = 0u; i < BspGpioSleepPinCount; i++)
 	{
 		enRet = BspGpio_SetAnalogModeById(s_aBspGpioSleepPinIds[i]);
+		if (Ok != enRet)
+		{
+			return enRet;
+		}
+	}
+
+	for (i = 0u; i < BspGpioSleepAnalogPinCount; i++)
+	{
+		enRet = Gpio_SetAnalogMode(s_astBspGpioSleepAnalogPinCfg[i].port,
+								   s_astBspGpioSleepAnalogPinCfg[i].pin);
 		if (Ok != enRet)
 		{
 			return enRet;

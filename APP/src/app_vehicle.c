@@ -34,11 +34,12 @@
 #define APP_VEHICLE_SPEED_DISPLAY_STEP			 (10u)
 #endif
 #define APP_VEHICLE_SPEED_DISPLAY_DEADBAND		 (0u)
+#define APP_VEHICLE_SPEED_DISPLAY_MIN_KMH		 (3u)
 #define APP_VEHICLE_SPEED_CALC_SCALE			 (10u)
 #define APP_VEHICLE_GEAR_BLINK_TICKS			 (5u)
 #define APP_VEHICLE_CLOCK_COLON_BLINK_TICKS		 (20u)
 #define APP_VEHICLE_FUEL_FAST_TICKS				 (30u)
-#define APP_VEHICLE_FUEL_SLOW_TICKS				 (300u)
+#define APP_VEHICLE_FUEL_SLOW_TICKS				 (600u) // 300 -- 15s
 #define APP_VEHICLE_FUEL_POWERON_CONFIRM_TICKS	 (2u)
 #define APP_VEHICLE_FUEL_INVALID_BARS			 (1u)
 #define APP_VEHICLE_FUEL_HYSTERESIS_OHM		 (2u)
@@ -661,7 +662,7 @@ static uint16_t App_Vehicle_GetCurrentSpeed(void)
 	}
 	speed =
 		(speed_x10 + (APP_VEHICLE_SPEED_CALC_SCALE / 2u)) / APP_VEHICLE_SPEED_CALC_SCALE;
-	if (0u == speed)
+	if (speed < APP_VEHICLE_SPEED_DISPLAY_MIN_KMH)
 	{
 		s_u16VehicleDisplaySpeed = 0u;
 		s_u16VehicleSpeedCandidate = 0u;
