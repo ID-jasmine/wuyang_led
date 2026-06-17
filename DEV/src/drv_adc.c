@@ -11,10 +11,16 @@
 #define DRV_ADC_IGN_ON_RAW                                                               \
 	(((uint32_t)DRV_ADC_IGN_ON_MV * DRV_ADC_FULL_SCALE + (DRV_ADC_REF_MV - 1u)) /        \
 	 DRV_ADC_REF_MV)
-#define DRV_ADC_IGN_ON_MS (300u)
+#define DRV_ADC_IGN_ON_MS	 (300u)
 #define DRV_ADC_SWITCH_ON_MV (1638u)
 #define DRV_ADC_SWITCH_ON_RAW                                                            \
 	(((uint32_t)DRV_ADC_SWITCH_ON_MV * DRV_ADC_FULL_SCALE + (DRV_ADC_REF_MV - 1u)) /     \
+	 DRV_ADC_REF_MV)
+#define DRV_ADC_SWITCH_IGN_LOW_VOLTAGE_MV (2769u)
+// +denominator/2 用于四舍五入 +denominator-1 用于向上取整
+#define DRV_ADC_SWITCH_IGN_LOW_VOLTAGE_RAW                                               \
+	(((uint32_t)DRV_ADC_SWITCH_IGN_LOW_VOLTAGE_MV * DRV_ADC_FULL_SCALE +                 \
+	  (DRV_ADC_REF_MV - 1u)) /                                                           \
 	 DRV_ADC_REF_MV)
 #define DRV_ADC_SWITCH_ON_MS (50u)
 
@@ -27,6 +33,8 @@ static boolean_t s_bDrvAdcReady = FALSE;
 static boolean_t s_bDrvAdcInited = FALSE;
 static uint16_t s_u16DrvAdcIgnOnCnt = 0u;
 static boolean_t s_bDrvAdcIgnActive = FALSE;
+static uint16_t s_au16DrvAdcIgnLowVoltageCnt = 0u;
+static boolean_t s_au16DrvAdcIgnLowVoltageActive = FALSE;
 
 static en_result_t DrvAdc_CheckId(en_bsp_adc_id_t id)
 {
@@ -104,6 +112,27 @@ static void DrvAdc_UpdateSwitchState(en_bsp_adc_id_t id, uint16_t raw)
 	}
 }
 
+static void DrvAdc_UpdateIgnLowVoltageState(uint16_t raw)
+{
+	if ((raw >= DRV_ADC_IGN_ON_RAW) && (raw < DRV_ADC_SWITCH_IGN_LOW_VOLTAGE_RAW))
+	{
+		if (s_au16DrvAdcIgnLowVoltageCnt < DRV_ADC_SWITCH_ON_MS)
+		{
+			s_au16DrvAdcIgnLowVoltageCnt++;
+		}
+
+		if (s_au16DrvAdcIgnLowVoltageCnt >= DRV_ADC_SWITCH_ON_MS)
+		{
+			s_au16DrvAdcIgnLowVoltageActive = TRUE;
+		}
+	}
+	else
+	{
+		s_au16DrvAdcIgnLowVoltageCnt = 0u;
+		s_au16DrvAdcIgnLowVoltageActive = FALSE;
+	}
+}
+
 /**
  * @brief 初始化 ADC 驱动。
  *
@@ -125,6 +154,8 @@ void DRV_ADC_Init(void)
 	s_bDrvAdcInited = FALSE;
 	s_u16DrvAdcIgnOnCnt = 0u;
 	s_bDrvAdcIgnActive = FALSE;
+	s_au16DrvAdcIgnLowVoltageCnt = 0u;
+	s_au16DrvAdcIgnLowVoltageActive = FALSE;
 
 	BSP_ADC_Init();
 	s_bDrvAdcInited = TRUE;
@@ -152,6 +183,7 @@ void DRV_ADC_Task1ms(void)
 	}
 
 	DrvAdc_UpdateIgnState(BSP_ADC_GetResult(BspAdcIdIgn));
+	DrvAdc_UpdateIgnLowVoltageState(BSP_ADC_GetResult(BspAdcIdIgn));
 	DrvAdc_UpdateSwitchState(BspAdcIdLeftTurn, BSP_ADC_GetResult(BspAdcIdLeftTurn));
 	DrvAdc_UpdateSwitchState(BspAdcIdHighBeam, BSP_ADC_GetResult(BspAdcIdHighBeam));
 	DrvAdc_UpdateSwitchState(BspAdcIdRightTurn, BSP_ADC_GetResult(BspAdcIdRightTurn));
@@ -239,6 +271,11 @@ boolean_t DRV_ADC_IsHighBeamActive(void)
 	return s_abDrvAdcSwitchActive[BspAdcIdHighBeam];
 }
 
+boolean_t DRV_ADC_IsIgnLowVoltageActive(void)
+{
+	return s_au16DrvAdcIgnLowVoltageActive;
+}
+
 /**
  * @brief 获取指定 ADC 通道的平均值。
  * @param id ADC 通道 ID。
@@ -297,6 +334,8 @@ void DRV_ADC_DeInit(void)
 	s_bDrvAdcInited = FALSE;
 	s_u16DrvAdcIgnOnCnt = 0u;
 	s_bDrvAdcIgnActive = FALSE;
+	s_au16DrvAdcIgnLowVoltageCnt = 0u;
+	s_au16DrvAdcIgnLowVoltageActive = FALSE;
 	for (i = 0u; i < BspAdcIdCount; i++)
 	{
 		s_au16DrvAdcSwitchOnCnt[i] = 0u;

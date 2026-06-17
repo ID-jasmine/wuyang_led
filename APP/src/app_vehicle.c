@@ -1069,7 +1069,7 @@ static void App_Vehicle_ShowIndicators(void)
 	LedPanel_Set(LedPanelIdRightTurn, DRV_ADC_IsRightTurnActive());
 	LedPanel_Set(LedPanelIdHighBeam, DRV_ADC_IsHighBeamActive());
 	LedPanel_Set(LedPanelIdEngineFault, DRV_Input_IsActive(DrvInputIdEnginefault));
-	LedPanel_Set(LedPanelIdBatteryFault, FALSE);
+	LedPanel_Set(LedPanelIdBatteryFault, DRV_ADC_IsIgnLowVoltageActive());
 }
 
 static void App_Vehicle_ShowSelfCheckFrame(uint16_t tick)
