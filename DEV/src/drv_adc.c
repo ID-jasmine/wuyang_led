@@ -16,7 +16,7 @@
 #define DRV_ADC_SWITCH_ON_RAW                                                            \
 	(((uint32_t)DRV_ADC_SWITCH_ON_MV * DRV_ADC_FULL_SCALE + (DRV_ADC_REF_MV - 1u)) /     \
 	 DRV_ADC_REF_MV)
-#define DRV_ADC_SWITCH_IGN_LOW_VOLTAGE_MV (2769u)
+#define DRV_ADC_SWITCH_IGN_LOW_VOLTAGE_MV (2274u)
 // +denominator/2 用于四舍五入 +denominator-1 用于向上取整
 #define DRV_ADC_SWITCH_IGN_LOW_VOLTAGE_RAW                                               \
 	(((uint32_t)DRV_ADC_SWITCH_IGN_LOW_VOLTAGE_MV * DRV_ADC_FULL_SCALE +                 \
