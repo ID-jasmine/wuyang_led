@@ -1,21 +1,21 @@
 #include "dev_speed_rpm.h"
 #include "bsp_time_capture.h"
 
-#define DEV_SPEED_RPM_MIN_WINDOW_TICKS	  (150000u)
-#define DEV_SPEED_RPM_MIN_PULSE_COUNT	  (24u)
-#define DEV_SPEED_RPM_GATE_FAST_MS		  (50u)
-#define DEV_SPEED_RPM_GATE_MID_MS		  (50u)
-#define DEV_SPEED_RPM_GATE_SLOW_MS		  (1000u)
-#define DEV_SPEED_RPM_GATE_FAST_PULSES	  (15u)
-#define DEV_SPEED_RPM_GATE_MID_PULSES	  (10u)
-#define DEV_SPEED_RPM_GATE_AVG_COUNT	  (3u)
-#define DEV_SPEED_RPM_TIMEOUT_MS		  (1000u)
-#define DEV_SPEED_RPM_ADAPTIVE_FILTER_SHIFT (1u)
-#define DEV_SPEED_RPM_MIN_VALID_DELTA_US  (4000u)
-#define DEV_SPEED_RPM_GATE_SPIKE_NUMERATOR	  (11u)
-#define DEV_SPEED_RPM_GATE_SPIKE_DENOMINATOR	  (10u)
-#define DEV_SPEED_RPM_GATE_SPIKE_CONFIRM_COUNT (2u)
-#define DEV_SPEED_RPM_GATE_SPIKE_MATCH_NUMERATOR (11u)
+#define DEV_SPEED_RPM_MIN_WINDOW_TICKS			   (150000u)
+#define DEV_SPEED_RPM_MIN_PULSE_COUNT			   (24u)
+#define DEV_SPEED_RPM_GATE_FAST_MS				   (50u)
+#define DEV_SPEED_RPM_GATE_MID_MS				   (50u)
+#define DEV_SPEED_RPM_GATE_SLOW_MS				   (1000u)
+#define DEV_SPEED_RPM_GATE_FAST_PULSES			   (15u)
+#define DEV_SPEED_RPM_GATE_MID_PULSES			   (10u)
+#define DEV_SPEED_RPM_GATE_AVG_COUNT			   (3u)
+#define DEV_SPEED_RPM_TIMEOUT_MS				   (1000u)
+#define DEV_SPEED_RPM_ADAPTIVE_FILTER_SHIFT		   (1u)
+#define DEV_SPEED_RPM_MIN_VALID_DELTA_US		   (4000u)
+#define DEV_SPEED_RPM_GATE_SPIKE_NUMERATOR		   (11u)
+#define DEV_SPEED_RPM_GATE_SPIKE_DENOMINATOR	   (10u)
+#define DEV_SPEED_RPM_GATE_SPIKE_CONFIRM_COUNT	   (2u)
+#define DEV_SPEED_RPM_GATE_SPIKE_MATCH_NUMERATOR   (11u)
 #define DEV_SPEED_RPM_GATE_SPIKE_MATCH_DENOMINATOR (10u)
 
 typedef struct
@@ -143,8 +143,7 @@ DevSpeedRpm_IsCaptureDeltaTooShort(const stc_dev_speed_rpm_state_t *state,
 	}
 
 	delta_ticks = timestamp - state->last_valid_timestamp;
-	short_delta_ticks =
-		(s_u32TimerClockHz * DEV_SPEED_RPM_MIN_VALID_DELTA_US) / 1000000u;
+	short_delta_ticks = (s_u32TimerClockHz * DEV_SPEED_RPM_MIN_VALID_DELTA_US) / 1000000u;
 	if ((delta_ticks > 0u) && (delta_ticks < short_delta_ticks))
 	{
 		return TRUE;
@@ -178,8 +177,7 @@ static boolean_t DevSpeedRpm_ShouldIgnoreGateSpike(stc_dev_speed_rpm_state_t *st
 
 	current_freq_mhz = state->freq_mhz[DevSpeedRpmMeasureGate];
 	spike_threshold_mhz =
-		(uint32_t)(((uint64_t)current_freq_mhz *
-					DEV_SPEED_RPM_GATE_SPIKE_NUMERATOR) /
+		(uint32_t)(((uint64_t)current_freq_mhz * DEV_SPEED_RPM_GATE_SPIKE_NUMERATOR) /
 				   DEV_SPEED_RPM_GATE_SPIKE_DENOMINATOR);
 	if (new_freq_mhz <= spike_threshold_mhz)
 	{
@@ -190,16 +188,13 @@ static boolean_t DevSpeedRpm_ShouldIgnoreGateSpike(stc_dev_speed_rpm_state_t *st
 
 	if (0u != state->gate_spike_candidate_freq)
 	{
-		candidate_low_mhz =
-			(uint32_t)(((uint64_t)state->gate_spike_candidate_freq *
-						DEV_SPEED_RPM_GATE_SPIKE_DENOMINATOR) /
-					   DEV_SPEED_RPM_GATE_SPIKE_MATCH_NUMERATOR);
-		candidate_high_mhz =
-			(uint32_t)(((uint64_t)state->gate_spike_candidate_freq *
-						DEV_SPEED_RPM_GATE_SPIKE_MATCH_NUMERATOR) /
-					   DEV_SPEED_RPM_GATE_SPIKE_MATCH_DENOMINATOR);
-		if ((new_freq_mhz < candidate_low_mhz) ||
-			(new_freq_mhz > candidate_high_mhz))
+		candidate_low_mhz = (uint32_t)(((uint64_t)state->gate_spike_candidate_freq *
+										DEV_SPEED_RPM_GATE_SPIKE_DENOMINATOR) /
+									   DEV_SPEED_RPM_GATE_SPIKE_MATCH_NUMERATOR);
+		candidate_high_mhz = (uint32_t)(((uint64_t)state->gate_spike_candidate_freq *
+										 DEV_SPEED_RPM_GATE_SPIKE_MATCH_NUMERATOR) /
+										DEV_SPEED_RPM_GATE_SPIKE_MATCH_DENOMINATOR);
+		if ((new_freq_mhz < candidate_low_mhz) || (new_freq_mhz > candidate_high_mhz))
 		{
 			state->gate_spike_candidate_freq = new_freq_mhz;
 			state->gate_spike_candidate_count = 0u;
