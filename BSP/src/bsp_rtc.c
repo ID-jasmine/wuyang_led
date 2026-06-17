@@ -2,6 +2,8 @@
 #include "bsp_sys.h"
 #include "wdt.h"
 
+#define BSP_RTC_XTL_STARTUP_WAIT_MS (200u)
+
 /**
  * @brief  初始化RTC
  * @param  [in] hour 初始小时值，十进制格式
@@ -17,7 +19,7 @@ void BSP_RTC_Init(uint8_t hour, uint8_t minute)
 	Sysctrl_SetPeripheralGate(SysctrlPeripheralRtc, TRUE);
 
 	start_ms = BSP_SYS_GetTickMs();
-	while ((BSP_SYS_GetTickMs() - start_ms) < 500u)
+	while ((BSP_SYS_GetTickMs() - start_ms) < BSP_RTC_XTL_STARTUP_WAIT_MS)
 	{
 		Wdt_Feed();
 	}

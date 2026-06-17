@@ -11,7 +11,7 @@
 #define DRV_ADC_IGN_ON_RAW                                                               \
 	(((uint32_t)DRV_ADC_IGN_ON_MV * DRV_ADC_FULL_SCALE + (DRV_ADC_REF_MV - 1u)) /        \
 	 DRV_ADC_REF_MV)
-#define DRV_ADC_IGN_ON_MS	 (300u)
+#define DRV_ADC_IGN_ON_MS	 (100u)
 #define DRV_ADC_SWITCH_ON_MV (1638u)
 #define DRV_ADC_SWITCH_ON_RAW                                                            \
 	(((uint32_t)DRV_ADC_SWITCH_ON_MV * DRV_ADC_FULL_SCALE + (DRV_ADC_REF_MV - 1u)) /     \
