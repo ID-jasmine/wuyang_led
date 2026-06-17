@@ -16,7 +16,7 @@
 #define APP_VEHICLE_SELF_CHECK_TICKS                                                     \
 	(APP_VEHICLE_SELF_CHECK_SETUP_TICKS + APP_VEHICLE_SELF_CHECK_RPM_DOWN_TICKS +        \
 	 APP_VEHICLE_SELF_CHECK_FULL_ON_TICKS + APP_VEHICLE_SELF_CHECK_RAMP_UP_TICKS)
-#define APP_VEHICLE_SELF_CHECK_SPEED_DIGIT_TICKS (8u)
+#define APP_VEHICLE_SELF_CHECK_SPEED_DIGIT_TICKS (5u)
 #define APP_VEHICLE_SELF_CHECK_SWEEP_TICKS		 (4u)
 #define APP_VEHICLE_NORMAL_REFRESH_TICKS		 (5u)
 #define APP_VEHICLE_ADC_FULL_SCALE				 (4095u)
@@ -1105,7 +1105,7 @@ static void App_Vehicle_ShowSelfCheckFrame(uint16_t tick)
 		if (phase_tick < (9u * APP_VEHICLE_SELF_CHECK_SPEED_DIGIT_TICKS))
 		{
 			digit =
-				(uint8_t)((phase_tick / APP_VEHICLE_SELF_CHECK_SPEED_DIGIT_TICKS) + 1u);
+				(uint8_t)(9u - (phase_tick / APP_VEHICLE_SELF_CHECK_SPEED_DIGIT_TICKS));
 			App_Vehicle_ShowSelfCheckSpeedRaw(digit, digit, FALSE);
 		}
 		else
