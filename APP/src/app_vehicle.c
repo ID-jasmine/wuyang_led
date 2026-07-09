@@ -589,6 +589,28 @@ static void App_Vehicle_UpdateClockCache(void)
 	s_bVehicleClockValid = TRUE;
 }
 
+static void App_Vehicle_SaveClockSetting(void)
+{
+	stc_rtc_time_t rtc_time;
+
+	s_bVehicleClockSettingMode = FALSE;
+	s_bVehicleClockBlinkState = TRUE;
+	s_u8VehicleClockBlinkTick = 0u;
+	s_u8VehicleClockColonBlinkTick = 0u;
+	s_bVehicleClockColonOn = TRUE;
+
+	if (Ok == DRV_RTC_ReadDateTime(&rtc_time))
+	{
+		rtc_time.u8Second = 0u;
+		rtc_time.u8Hour = (uint8_t)((((s_u8VehicleClockHour) / 10u) << 4u) |
+									((s_u8VehicleClockHour) % 10u));
+		rtc_time.u8Minute = (uint8_t)((((s_u8VehicleClockMinute) / 10u) << 4u) |
+									  ((s_u8VehicleClockMinute) % 10u));
+		(void)DRV_RTC_SetTime(&rtc_time);
+		s_bVehicleClockValid = TRUE;
+	}
+}
+
 static void App_Vehicle_ShowClock(void)
 {
 	if (FALSE == s_bVehicleClockValid)
@@ -620,6 +642,13 @@ static void App_Vehicle_ShowClock(void)
 
 static void App_Vehicle_UpdateClockColonBlink(void)
 {
+	if (s_bVehicleClockSettingMode)
+	{
+		s_u8VehicleClockColonBlinkTick = 0u;
+		s_bVehicleClockColonOn = TRUE;
+		return;
+	}
+
 	s_u8VehicleClockColonBlinkTick++;
 	if (s_u8VehicleClockColonBlinkTick >= APP_VEHICLE_CLOCK_COLON_BLINK_TICKS)
 	{
@@ -1269,18 +1298,7 @@ static void App_Vehicle_ProcessButtons(void)
 	{
 		if (DRV_Button_IsTimeout10s())
 		{
-			stc_rtc_time_t rtc_time;
-
-			s_bVehicleClockSettingMode = FALSE;
-
-			if (Ok == DRV_RTC_ReadDateTime(&rtc_time))
-			{
-				rtc_time.u8Hour = (uint8_t)((((s_u8VehicleClockHour) / 10u) << 4u) |
-											((s_u8VehicleClockHour) % 10u));
-				rtc_time.u8Minute = (uint8_t)((((s_u8VehicleClockMinute) / 10u) << 4u) |
-											  ((s_u8VehicleClockMinute) % 10u));
-				(void)DRV_RTC_SetTime(&rtc_time);
-			}
+			App_Vehicle_SaveClockSetting();
 		}
 		else
 		{
@@ -1300,6 +1318,8 @@ static void App_Vehicle_ProcessButtons(void)
 		s_bVehicleClockSettingHour = TRUE;
 		s_bVehicleClockBlinkState = TRUE;
 		s_u8VehicleClockBlinkTick = 0u;
+		s_u8VehicleClockColonBlinkTick = 0u;
+		s_bVehicleClockColonOn = TRUE;
 		DRV_Button_ClearTimeout();
 	}
 
@@ -1320,10 +1340,16 @@ static void App_Vehicle_ProcessButtons(void)
 		}
 		else if (eventK2 == DrvButtonEventShortPress)
 		{
-			s_bVehicleClockSettingHour =
-				(TRUE == s_bVehicleClockSettingHour) ? FALSE : TRUE;
-			DRV_Button_ClearTimeout();
-			s_bVehicleClockBlinkState = TRUE;
+			if (s_bVehicleClockSettingHour)
+			{
+				s_bVehicleClockSettingHour = FALSE;
+				DRV_Button_ClearTimeout();
+				s_bVehicleClockBlinkState = TRUE;
+			}
+			else
+			{
+				App_Vehicle_SaveClockSetting();
+			}
 		}
 	}
 	else
