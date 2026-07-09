@@ -354,3 +354,12 @@ void DRV_ADC_Wakeup(void)
 	BSP_ADC_Wakeup();
 	s_bDrvAdcInited = TRUE;
 }
+
+/**
+ * @brief  仅恢复IGN采样所需的ADC资源，用于低功耗唤醒后的电门确认。
+ */
+void DRV_ADC_WakeupIgnCheck(void)
+{
+	BSP_ADC_WakeupIgnCheck();
+	s_bDrvAdcInited = TRUE;
+}

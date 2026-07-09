@@ -24,6 +24,7 @@ extern "C"
 	uint16_t DRV_ADC_GetResistanceOhm(en_bsp_adc_id_t id);
 	void DRV_ADC_DeInit(void);
 	void DRV_ADC_Wakeup(void);
+	void DRV_ADC_WakeupIgnCheck(void);
 	boolean_t DRV_ADC_CheckIgnOnce(uint8_t sample_count);
 
 #ifdef __cplusplus

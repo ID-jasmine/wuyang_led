@@ -27,6 +27,7 @@ extern "C"
 	uint16_t BSP_ADC_GetResult(en_bsp_adc_id_t id);
 	void BSP_ADC_DeInit(void);
 	void BSP_ADC_Wakeup(void);
+	void BSP_ADC_WakeupIgnCheck(void);
 
 #ifdef __cplusplus
 }

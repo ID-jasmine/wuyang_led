@@ -89,6 +89,12 @@ static void BspAdc_PortInit(void)
 	}
 }
 
+static void BspAdc_PortInitById(en_bsp_adc_id_t id)
+{
+	Sysctrl_SetPeripheralGate(SysctrlPeripheralGpio, TRUE);
+	Gpio_SetAnalogMode(s_astBspAdcChannelCfg[id].port, s_astBspAdcChannelCfg[id].pin);
+}
+
 static void BspAdc_CoreInit(void)
 {
 	stc_adc_sqr_cfg_t stcAdcSqrCfg;
@@ -139,6 +145,22 @@ void BSP_ADC_Init(void)
 void BSP_ADC_Wakeup(void)
 {
 	BspAdc_PortInit();
+
+	M0P_BGR->CR |= 0x1u;
+	delay100us_safe(1);
+
+	M0P_ADC->CR0 |= 0x1u;
+	delay100us_safe(1);
+
+	Adc_Enable();
+}
+
+/**
+ * @brief  仅恢复IGN采样所需的ADC资源，用于低功耗唤醒后的电门确认。
+ */
+void BSP_ADC_WakeupIgnCheck(void)
+{
+	BspAdc_PortInitById(BspAdcIdIgn);
 
 	M0P_BGR->CR |= 0x1u;
 	delay100us_safe(1);

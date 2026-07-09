@@ -109,25 +109,31 @@ int32_t main(void)
 				BSP_LPM_RestoreClockAfterWakeup();
 				BSP_WDT_Feed();
 
-				Bsp_Gpio_Init();
-				(void)DEV_SpeedRpm_Init();
-				(void)DRV_EEPROM_Init();
-				DRV_ADC_Wakeup();
-
 				if (rtc_time_500ms_flag == 1u)
 				{
 					rtc_time_500ms_flag = 0u;
+					DRV_ADC_WakeupIgnCheck();
 
 					if (TRUE == DRV_ADC_CheckIgnOnce(5u))
 					{
+						Bsp_Gpio_Init();
+						(void)DEV_SpeedRpm_Init();
+						(void)DRV_EEPROM_Init();
+						DRV_ADC_Wakeup();
+
 						IGN_ON_OFF = 1u;
 						DeepSleep_cnt = 0u;
 						g_lpm_adc_checking = 0u;
 					}
 					else
 					{
+						DRV_ADC_DeInit();
 						IGN_ON_OFF = 0u;
 					}
+				}
+				else
+				{
+					DRV_ADC_DeInit();
 				}
 			}
 		}
