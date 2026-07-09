@@ -1,12 +1,7 @@
 #include "led_panel.h"
 
-#define LED_PANEL_SEG_A (0x01u)
-#define LED_PANEL_SEG_B (0x02u)
-#define LED_PANEL_SEG_C (0x04u)
-#define LED_PANEL_SEG_D (0x08u)
-#define LED_PANEL_SEG_E (0x10u)
-#define LED_PANEL_SEG_F (0x20u)
-#define LED_PANEL_SEG_G (0x40u)
+static en_result_t LedPanel_SetSegmentGroupsPattern(
+	const stc_led_panel_index_group_t *segments, uint8_t pattern);
 
 static const uint8_t s_au8LedPanelDigitPattern[10] = {
 	(uint8_t)(LED_PANEL_SEG_A | LED_PANEL_SEG_B | LED_PANEL_SEG_C | LED_PANEL_SEG_D |
@@ -96,8 +91,18 @@ static en_result_t LedPanel_SetIndexList(const uint8_t *indices, uint8_t count,
 static en_result_t LedPanel_SetSegmentGroups(const stc_led_panel_index_group_t *segments,
 											 uint8_t digit)
 {
+	if (digit > 9u)
+	{
+		return LedPanel_SetSegmentGroupsPattern(segments, 0u);
+	}
+
+	return LedPanel_SetSegmentGroupsPattern(segments, s_au8LedPanelDigitPattern[digit]);
+}
+
+static en_result_t LedPanel_SetSegmentGroupsPattern(
+	const stc_led_panel_index_group_t *segments, uint8_t pattern)
+{
 	uint8_t i;
-	uint8_t pattern;
 	en_result_t enRet;
 
 	if (NULL == segments)
@@ -105,30 +110,13 @@ static en_result_t LedPanel_SetSegmentGroups(const stc_led_panel_index_group_t *
 		return ErrorInvalidParameter;
 	}
 
-	for (i = 0u; i < 7u; i++)
+	for (i = 0u; i < LED_PANEL_SEGMENT_COUNT; i++)
 	{
-		enRet = LedPanel_SetIndexList(segments[i].indices, segments[i].count, FALSE);
+		enRet = LedPanel_SetIndexList(segments[i].indices, segments[i].count,
+									  (boolean_t)(0u != (pattern & (uint8_t)(1u << i))));
 		if (Ok != enRet)
 		{
 			return enRet;
-		}
-	}
-
-	if (digit > 9u)
-	{
-		return Ok;
-	}
-
-	pattern = s_au8LedPanelDigitPattern[digit];
-	for (i = 0u; i < 7u; i++)
-	{
-		if (0u != (pattern & (uint8_t)(1u << i)))
-		{
-			enRet = LedPanel_SetIndexList(segments[i].indices, segments[i].count, TRUE);
-			if (Ok != enRet)
-			{
-				return enRet;
-			}
 		}
 	}
 
@@ -451,6 +439,51 @@ en_result_t LedPanel_ShowSpeed(uint16_t speed)
 	}
 
 	return LedPanel_SetSegmentGroups(g_astLedPanelSpeedOnesSegments, ones_digit);
+}
+
+en_result_t LedPanel_ShowSpeedDigits(uint8_t tens_digit, uint8_t ones_digit,
+									 boolean_t hundreds_on)
+{
+	en_result_t enRet;
+
+	if ((tens_digit > 9u) || (ones_digit > 9u))
+	{
+		return ErrorInvalidParameter;
+	}
+
+	enRet = LedPanel_SetSpeedHundreds(hundreds_on);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
+
+	enRet = LedPanel_SetSegmentGroups(g_astLedPanelSpeedTensSegments, tens_digit);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
+
+	return LedPanel_SetSegmentGroups(g_astLedPanelSpeedOnesSegments, ones_digit);
+}
+
+en_result_t LedPanel_ShowSpeedSegmentPattern(uint8_t tens_pattern, uint8_t ones_pattern,
+											 boolean_t hundreds_on)
+{
+	en_result_t enRet;
+
+	enRet = LedPanel_SetSpeedHundreds(hundreds_on);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
+
+	enRet = LedPanel_SetSegmentGroupsPattern(g_astLedPanelSpeedTensSegments, tens_pattern);
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
+
+	return LedPanel_SetSegmentGroupsPattern(g_astLedPanelSpeedOnesSegments, ones_pattern);
 }
 
 /**

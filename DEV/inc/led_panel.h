@@ -4,6 +4,14 @@
 #include "bsp_tm3100_led.h"
 #include "led_panel_map.h"
 
+#define LED_PANEL_SEG_A (0x01u)
+#define LED_PANEL_SEG_B (0x02u)
+#define LED_PANEL_SEG_C (0x04u)
+#define LED_PANEL_SEG_D (0x08u)
+#define LED_PANEL_SEG_E (0x10u)
+#define LED_PANEL_SEG_F (0x20u)
+#define LED_PANEL_SEG_G (0x40u)
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -69,6 +77,11 @@ extern "C"
 	en_result_t LedPanel_ShowGearDigit(uint8_t digit);
 	en_result_t LedPanel_ClearGearDigit(void);
 	en_result_t LedPanel_ShowSpeed(uint16_t speed);
+	en_result_t LedPanel_ShowSpeedDigits(uint8_t tens_digit, uint8_t ones_digit,
+										 boolean_t hundreds_on);
+	en_result_t LedPanel_ShowSpeedSegmentPattern(uint8_t tens_pattern,
+												 uint8_t ones_pattern,
+												 boolean_t hundreds_on);
 	en_result_t LedPanel_ShowOdometer(uint32_t value, uint8_t decimal_digit);
 	en_result_t LedPanel_ShowTripOdometer(uint16_t tenths_km);
 	en_result_t LedPanel_ShowTotalOdometer(uint32_t km);

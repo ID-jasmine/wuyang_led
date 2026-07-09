@@ -1,6 +1,5 @@
 #include "app_vehicle.h"
 
-#include "bsp_tm3100_led.h"
 #include "dev_speed_rpm.h"
 #include "drv_adc.h"
 #include "drv_button.h"
@@ -102,19 +101,6 @@ static uint32_t s_u32VehicleTestFreqX100 = 0u;
 static boolean_t s_bVehicleTestGateInited = FALSE;
 #endif
 
-static const uint8_t s_au8VehicleDigitPattern[10] = {
-	(uint8_t)(0x01u | 0x02u | 0x04u | 0x08u | 0x10u | 0x20u),
-	(uint8_t)(0x02u | 0x04u),
-	(uint8_t)(0x01u | 0x02u | 0x08u | 0x10u | 0x40u),
-	(uint8_t)(0x01u | 0x02u | 0x04u | 0x08u | 0x40u),
-	(uint8_t)(0x02u | 0x04u | 0x20u | 0x40u),
-	(uint8_t)(0x01u | 0x04u | 0x08u | 0x20u | 0x40u),
-	(uint8_t)(0x01u | 0x04u | 0x08u | 0x10u | 0x20u | 0x40u),
-	(uint8_t)(0x01u | 0x02u | 0x04u),
-	(uint8_t)(0x01u | 0x02u | 0x04u | 0x08u | 0x10u | 0x20u | 0x40u),
-	(uint8_t)(0x01u | 0x02u | 0x04u | 0x08u | 0x20u | 0x40u),
-};
-
 static const stc_app_vehicle_speed_map_t s_astVehicleSpeedMap[] = {
 	{0u, 0u},	{10u, 11u},	  {20u, 21u},	{40u, 43u},	  {60u, 66u},
 	{80u, 86u}, {100u, 108u}, {120u, 131u}, {140u, 151u}, {199u, 199u},
@@ -131,93 +117,27 @@ static uint8_t s_u8VehicleClockColonBlinkTick = 0u;
 static boolean_t s_bVehicleClockColonOn = TRUE;
 static uint8_t s_u8VehicleClockBlinkTick = 0;
 
-static en_result_t App_Vehicle_SetLinearList(const uint8_t *indices, uint8_t count,
-											 boolean_t level)
+static void App_Vehicle_ShowSelfCheckSpeedDigits(uint8_t tens_digit, uint8_t ones_digit,
+												 boolean_t hundreds_on)
 {
-	uint8_t i;
-	en_result_t enRet;
-
-	if ((NULL == indices) || (0u == count))
-	{
-		return ErrorInvalidParameter;
-	}
-
-	for (i = 0u; i < count; i++)
-	{
-		enRet = Bsp_Tm3100Led_SetLinear(indices[i], level);
-		if (Ok != enRet)
-		{
-			return enRet;
-		}
-	}
-
-	return Ok;
-}
-
-static en_result_t App_Vehicle_SetSegmentGroupPattern(
-	const stc_led_panel_index_group_t groups[LED_PANEL_SEGMENT_COUNT], uint8_t pattern)
-{
-	uint8_t i;
-	en_result_t enRet;
-
-	if (NULL == groups)
-	{
-		return ErrorInvalidParameter;
-	}
-
-	for (i = 0u; i < LED_PANEL_SEGMENT_COUNT; i++)
-	{
-		enRet =
-			App_Vehicle_SetLinearList(groups[i].indices, groups[i].count,
-									  (boolean_t)(0u != (pattern & (uint8_t)(1u << i))));
-		if (Ok != enRet)
-		{
-			return enRet;
-		}
-	}
-
-	return Ok;
-}
-
-static uint8_t App_Vehicle_GetDigitPattern(uint8_t digit)
-{
-	if (digit > 9u)
-	{
-		return 0u;
-	}
-
-	return s_au8VehicleDigitPattern[digit];
-}
-
-static void App_Vehicle_ShowSelfCheckSpeedRaw(uint8_t tens_digit, uint8_t ones_digit,
-											  boolean_t hundreds_on)
-{
-	App_Vehicle_SetLinearList(g_au8LedPanelSpeedHundredsSegB,
-							  ARRAY_SZ(g_au8LedPanelSpeedHundredsSegB), hundreds_on);
-	App_Vehicle_SetLinearList(g_au8LedPanelSpeedHundredsSegC,
-							  ARRAY_SZ(g_au8LedPanelSpeedHundredsSegC), hundreds_on);
-	App_Vehicle_SetSegmentGroupPattern(g_astLedPanelSpeedTensSegments,
-									   App_Vehicle_GetDigitPattern(tens_digit));
-	App_Vehicle_SetSegmentGroupPattern(g_astLedPanelSpeedOnesSegments,
-									   App_Vehicle_GetDigitPattern(ones_digit));
+	(void)LedPanel_ShowSpeedDigits(tens_digit, ones_digit, hundreds_on);
 }
 
 static void App_Vehicle_ShowSelfCheckSpeedSweep(uint16_t tick)
 {
 	static const uint8_t au8SweepPatterns[] = {
-		(uint8_t)(0x02u | 0x04u), (uint8_t)(0x01u | 0x02u), (uint8_t)(0x20u | 0x01u),
-		(uint8_t)(0x10u | 0x20u), (uint8_t)(0x08u | 0x10u), (uint8_t)(0x04u | 0x08u),
+		(uint8_t)(LED_PANEL_SEG_B | LED_PANEL_SEG_C),
+		(uint8_t)(LED_PANEL_SEG_A | LED_PANEL_SEG_B),
+		(uint8_t)(LED_PANEL_SEG_F | LED_PANEL_SEG_A),
+		(uint8_t)(LED_PANEL_SEG_E | LED_PANEL_SEG_F),
+		(uint8_t)(LED_PANEL_SEG_D | LED_PANEL_SEG_E),
+		(uint8_t)(LED_PANEL_SEG_C | LED_PANEL_SEG_D),
 	};
 	uint8_t pattern;
 
 	pattern = au8SweepPatterns[(tick / APP_VEHICLE_SELF_CHECK_SWEEP_TICKS) %
 							   ARRAY_SZ(au8SweepPatterns)];
-	App_Vehicle_SetLinearList(g_au8LedPanelSpeedHundredsSegB,
-							  ARRAY_SZ(g_au8LedPanelSpeedHundredsSegB), FALSE);
-	App_Vehicle_SetLinearList(g_au8LedPanelSpeedHundredsSegC,
-							  ARRAY_SZ(g_au8LedPanelSpeedHundredsSegC), FALSE);
-	App_Vehicle_SetSegmentGroupPattern(g_astLedPanelSpeedTensSegments, pattern);
-	App_Vehicle_SetSegmentGroupPattern(g_astLedPanelSpeedOnesSegments, pattern);
+	(void)LedPanel_ShowSpeedSegmentPattern(pattern, pattern, FALSE);
 }
 
 static uint16_t App_Vehicle_ConfirmDisplayU16(uint16_t sample, uint16_t *display,
@@ -1115,7 +1035,7 @@ static void App_Vehicle_ShowSelfCheckFrame(uint16_t tick)
 		LedPanel_Clear();
 		LedPanel_SetBorder(TRUE);
 		LedPanel_ShowRpmBars(LED_PANEL_RPM_BAR_COUNT);
-		App_Vehicle_ShowSelfCheckSpeedRaw(0u, 0u, FALSE);
+		App_Vehicle_ShowSelfCheckSpeedDigits(0u, 0u, FALSE);
 		LedPanel_Refresh();
 		return;
 	}
@@ -1135,7 +1055,7 @@ static void App_Vehicle_ShowSelfCheckFrame(uint16_t tick)
 		{
 			digit =
 				(uint8_t)(9u - (phase_tick / APP_VEHICLE_SELF_CHECK_SPEED_DIGIT_TICKS));
-			App_Vehicle_ShowSelfCheckSpeedRaw(digit, digit, FALSE);
+			App_Vehicle_ShowSelfCheckSpeedDigits(digit, digit, FALSE);
 		}
 		else
 		{
@@ -1152,7 +1072,7 @@ static void App_Vehicle_ShowSelfCheckFrame(uint16_t tick)
 		LedPanel_Fill();
 		LedPanel_ShowClock(0u, 0u);
 		LedPanel_ShowGearDigit(0u);
-		App_Vehicle_ShowSelfCheckSpeedRaw(0u, 0u, TRUE);
+		App_Vehicle_ShowSelfCheckSpeedDigits(0u, 0u, TRUE);
 		LedPanel_ShowOdometer(0u, 0u);
 		LedPanel_ShowRpmBars(1u);
 		LedPanel_ShowFuelBars(0u);
@@ -1182,7 +1102,7 @@ static void App_Vehicle_ShowSelfCheckFrame(uint16_t tick)
 
 	LedPanel_ShowClock((uint8_t)(digit * 11u), (uint8_t)(digit * 11u));
 	LedPanel_ShowGearDigit(digit);
-	App_Vehicle_ShowSelfCheckSpeedRaw(digit, digit, TRUE);
+	App_Vehicle_ShowSelfCheckSpeedDigits(digit, digit, TRUE);
 	LedPanel_ShowOdometer(odo_value, digit);
 	LedPanel_ShowRpmBars(rpm_bar_count);
 	LedPanel_ShowFuelBars(fuel_bar_count);
@@ -1278,8 +1198,8 @@ boolean_t App_Vehicle_SelfCheckTask10ms(void)
 	return s_bVehicleSelfCheckStarted;
 
 	// 卡在全亮
-	// Bsp_Tm3100Led_Fill();
-	// Bsp_Tm3100Led_Refresh();
+	// LedPanel_Fill();
+	// LedPanel_Refresh();
 	// return FALSE;
 }
 
