@@ -1,5 +1,13 @@
 #include "led_panel.h"
 
+#define LED_PANEL_SEG_A (0x01u)
+#define LED_PANEL_SEG_B (0x02u)
+#define LED_PANEL_SEG_C (0x04u)
+#define LED_PANEL_SEG_D (0x08u)
+#define LED_PANEL_SEG_E (0x10u)
+#define LED_PANEL_SEG_F (0x20u)
+#define LED_PANEL_SEG_G (0x40u)
+
 static en_result_t LedPanel_SetSegmentGroupsPattern(
 	const stc_led_panel_index_group_t *segments, uint8_t pattern);
 
@@ -464,26 +472,6 @@ en_result_t LedPanel_ShowSpeedDigits(uint8_t tens_digit, uint8_t ones_digit,
 	}
 
 	return LedPanel_SetSegmentGroups(g_astLedPanelSpeedOnesSegments, ones_digit);
-}
-
-en_result_t LedPanel_ShowSpeedSegmentPattern(uint8_t tens_pattern, uint8_t ones_pattern,
-											 boolean_t hundreds_on)
-{
-	en_result_t enRet;
-
-	enRet = LedPanel_SetSpeedHundreds(hundreds_on);
-	if (Ok != enRet)
-	{
-		return enRet;
-	}
-
-	enRet = LedPanel_SetSegmentGroupsPattern(g_astLedPanelSpeedTensSegments, tens_pattern);
-	if (Ok != enRet)
-	{
-		return enRet;
-	}
-
-	return LedPanel_SetSegmentGroupsPattern(g_astLedPanelSpeedOnesSegments, ones_pattern);
 }
 
 /**

@@ -16,7 +16,7 @@
 	(APP_VEHICLE_SELF_CHECK_SETUP_TICKS + APP_VEHICLE_SELF_CHECK_RPM_DOWN_TICKS +        \
 	 APP_VEHICLE_SELF_CHECK_FULL_ON_TICKS + APP_VEHICLE_SELF_CHECK_RAMP_UP_TICKS)
 #define APP_VEHICLE_SELF_CHECK_SPEED_DIGIT_TICKS (5u)
-#define APP_VEHICLE_SELF_CHECK_SWEEP_TICKS		 (4u)
+#define APP_VEHICLE_SELF_CHECK_SPEED_CYCLE_TICKS (4u)
 #define APP_VEHICLE_NORMAL_REFRESH_TICKS		 (5u)
 #define APP_VEHICLE_ADC_FULL_SCALE				 (4095u)
 #define APP_VEHICLE_SPEED_PULSES_PER_KM			 (2800u)
@@ -123,21 +123,12 @@ static void App_Vehicle_ShowSelfCheckSpeedDigits(uint8_t tens_digit, uint8_t one
 	(void)LedPanel_ShowSpeedDigits(tens_digit, ones_digit, hundreds_on);
 }
 
-static void App_Vehicle_ShowSelfCheckSpeedSweep(uint16_t tick)
+static void App_Vehicle_ShowSelfCheckSpeedDigitCycle(uint16_t tick)
 {
-	static const uint8_t au8SweepPatterns[] = {
-		(uint8_t)(LED_PANEL_SEG_B | LED_PANEL_SEG_C),
-		(uint8_t)(LED_PANEL_SEG_A | LED_PANEL_SEG_B),
-		(uint8_t)(LED_PANEL_SEG_F | LED_PANEL_SEG_A),
-		(uint8_t)(LED_PANEL_SEG_E | LED_PANEL_SEG_F),
-		(uint8_t)(LED_PANEL_SEG_D | LED_PANEL_SEG_E),
-		(uint8_t)(LED_PANEL_SEG_C | LED_PANEL_SEG_D),
-	};
-	uint8_t pattern;
+	uint8_t digit;
 
-	pattern = au8SweepPatterns[(tick / APP_VEHICLE_SELF_CHECK_SWEEP_TICKS) %
-							   ARRAY_SZ(au8SweepPatterns)];
-	(void)LedPanel_ShowSpeedSegmentPattern(pattern, pattern, FALSE);
+	digit = (uint8_t)((tick / APP_VEHICLE_SELF_CHECK_SPEED_CYCLE_TICKS) % 10u);
+	App_Vehicle_ShowSelfCheckSpeedDigits(digit, digit, FALSE);
 }
 
 static uint16_t App_Vehicle_ConfirmDisplayU16(uint16_t sample, uint16_t *display,
@@ -804,11 +795,21 @@ static void App_Vehicle_UpdateBrightness(void)
 								span));
 	}
 
-	if (brightness != s_u8VehicleBrightnessPercent)
+	/**
+	 * 当前该函数约每 50ms 执行一次。因此每次变化1%，最大变化速率是：
+	 * 每秒约20%
+	 * 从15%变化到55%约需2秒
+	 */
+	if (brightness > s_u8VehicleBrightnessPercent)
 	{
-		s_u8VehicleBrightnessPercent = brightness;
-		(void)LedPanel_SetBrightness(brightness);
+		s_u8VehicleBrightnessPercent++;
 	}
+	else if (brightness < s_u8VehicleBrightnessPercent)
+	{
+		s_u8VehicleBrightnessPercent--;
+	}
+
+	(void)LedPanel_SetBrightness(s_u8VehicleBrightnessPercent);
 }
 
 static uint8_t App_Vehicle_GetFuelTargetBars(void)
@@ -1059,7 +1060,7 @@ static void App_Vehicle_ShowSelfCheckFrame(uint16_t tick)
 		}
 		else
 		{
-			App_Vehicle_ShowSelfCheckSpeedSweep(
+			App_Vehicle_ShowSelfCheckSpeedDigitCycle(
 				(uint16_t)(phase_tick - (9u * APP_VEHICLE_SELF_CHECK_SPEED_DIGIT_TICKS)));
 		}
 		LedPanel_Refresh();
