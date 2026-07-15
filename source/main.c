@@ -17,7 +17,10 @@
 #define APP_LPM_ADC_MODE_NORMAL					  (0u)
 #define APP_LPM_ADC_MODE_ALWAYS_ON_CURRENT_TEST	  (1u)
 #define APP_LPM_ADC_MODE_OFF_NO_WAKE_CURRENT_TEST (2u)
-/* 当前测试：休眠时关闭 ADC/BGR，RTC 唤醒时也不打开 ADC，因此 IGN 无法开机。 */
+/*
+ * 正常模式
+ * 休眠全开adc，不亮仪表
+ * 休眠时关闭 ADC/BGR，RTC 唤醒时也不打开 ADC，因此 IGN 无法开机。 */
 #define APP_LPM_ADC_MODE APP_LPM_ADC_MODE_NORMAL
 void sys_init(void);
 

@@ -10,7 +10,6 @@
 #define DEV_SPEED_RPM_GATE_MID_PULSES			   (10u)
 #define DEV_SPEED_RPM_GATE_AVG_COUNT			   (3u)
 #define DEV_SPEED_RPM_TIMEOUT_MS				   (1000u)
-#define DEV_SPEED_RPM_ADAPTIVE_FILTER_SHIFT		   (1u)
 #define DEV_SPEED_RPM_MIN_VALID_DELTA_US		   (4000u)
 #define DEV_SPEED_RPM_GATE_SPIKE_NUMERATOR		   (11u)
 #define DEV_SPEED_RPM_GATE_SPIKE_DENOMINATOR	   (10u)
@@ -300,20 +299,7 @@ static void DevSpeedRpm_UpdateFreq(en_dev_speed_rpm_id_t id,
 		return;
 	}
 
-	if ((DevSpeedRpmIdSpeed == id) && (TRUE == s_astDevSpeedRpmState[id].valid[measure]))
-	{
-		s_astDevSpeedRpmState[id].freq_mhz[measure] =
-			(uint32_t)((((uint64_t)s_astDevSpeedRpmState[id].freq_mhz[measure] *
-						 ((1u << DEV_SPEED_RPM_ADAPTIVE_FILTER_SHIFT) - 1u)) +
-						new_freq_mhz +
-						(1u << (DEV_SPEED_RPM_ADAPTIVE_FILTER_SHIFT - 1u))) >>
-					   DEV_SPEED_RPM_ADAPTIVE_FILTER_SHIFT);
-	}
-	else
-	{
-		s_astDevSpeedRpmState[id].freq_mhz[measure] = new_freq_mhz;
-	}
-
+	s_astDevSpeedRpmState[id].freq_mhz[measure] = new_freq_mhz;
 	s_astDevSpeedRpmState[id].valid[measure] = TRUE;
 }
 

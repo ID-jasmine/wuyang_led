@@ -33,6 +33,8 @@
 	#define APP_VEHICLE_SPEED_DISPLAY_STEP	  (10u)
 #endif
 #define APP_VEHICLE_SPEED_DISPLAY_DEADBAND		 (0u)
+#define APP_VEHICLE_SPEED_FAST_FOLLOW_DELTA		 (3u)
+#define APP_VEHICLE_SPEED_STABLE_CONFIRM_TICKS	 (4u)
 #define APP_VEHICLE_SPEED_DISPLAY_MIN_KMH		 (3u)
 #define APP_VEHICLE_SPEED_CALC_SCALE			 (10u)
 #define APP_VEHICLE_GEAR_BLINK_TICKS			 (5u)
@@ -135,6 +137,7 @@ static uint16_t App_Vehicle_ConfirmDisplayU16(uint16_t sample, uint16_t *display
 											  uint16_t *candidate,
 											  uint8_t *candidate_ticks, boolean_t *inited)
 {
+	uint16_t delta;
 	uint16_t target;
 	uint16_t step;
 
@@ -173,39 +176,53 @@ static uint16_t App_Vehicle_ConfirmDisplayU16(uint16_t sample, uint16_t *display
 		return *display;
 	}
 
-	if (sample != *candidate)
+	delta = (sample > *display) ? (uint16_t)(sample - *display)
+								  : (uint16_t)(*display - sample);
+	if (delta >= APP_VEHICLE_SPEED_FAST_FOLLOW_DELTA)
 	{
 		*candidate = sample;
-		*candidate_ticks = 1u;
+		*candidate_ticks = 0u;
+		target = sample;
 	}
-	else if (*candidate_ticks < APP_VEHICLE_DISPLAY_CONFIRM_TICKS)
+	else
 	{
-		(*candidate_ticks)++;
+		if (sample != *candidate)
+		{
+			*candidate = sample;
+			*candidate_ticks = 1u;
+		}
+		else if (*candidate_ticks < APP_VEHICLE_SPEED_STABLE_CONFIRM_TICKS)
+		{
+			(*candidate_ticks)++;
+		}
+
+		if (*candidate_ticks < APP_VEHICLE_SPEED_STABLE_CONFIRM_TICKS)
+		{
+			return *display;
+		}
+
+		target = *candidate;
 	}
 
-	if (*candidate_ticks >= APP_VEHICLE_DISPLAY_CONFIRM_TICKS)
+	if (*display < target)
 	{
-		target = *candidate;
-		if (*display < target)
+		step = (uint16_t)(target - *display);
+		if (step > APP_VEHICLE_SPEED_DISPLAY_STEP)
 		{
-			step = (uint16_t)(target - *display);
-			if (step > APP_VEHICLE_SPEED_DISPLAY_STEP)
-			{
-				step = APP_VEHICLE_SPEED_DISPLAY_STEP;
-			}
-			*display = (uint16_t)(*display + step);
+			step = APP_VEHICLE_SPEED_DISPLAY_STEP;
 		}
-		else if (*display > target)
-		{
-			step = (uint16_t)(*display - target);
-			if (step > APP_VEHICLE_SPEED_DISPLAY_STEP)
-			{
-				step = APP_VEHICLE_SPEED_DISPLAY_STEP;
-			}
-			*display = (uint16_t)(*display - step);
-		}
-		*candidate_ticks = APP_VEHICLE_DISPLAY_CONFIRM_TICKS;
+		*display = (uint16_t)(*display + step);
 	}
+	else if (*display > target)
+	{
+		step = (uint16_t)(*display - target);
+		if (step > APP_VEHICLE_SPEED_DISPLAY_STEP)
+		{
+			step = APP_VEHICLE_SPEED_DISPLAY_STEP;
+		}
+		*display = (uint16_t)(*display - step);
+	}
+	*candidate_ticks = 0u;
 
 	return *display;
 }
