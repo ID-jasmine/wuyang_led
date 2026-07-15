@@ -43,7 +43,7 @@
 #define APP_VEHICLE_FUEL_SLOW_TICKS				 (600u) // 300 -- 15s
 #define APP_VEHICLE_FUEL_POWERON_CONFIRM_TICKS	 (2u)
 #define APP_VEHICLE_FUEL_INVALID_BARS			 (1u)
-#define APP_VEHICLE_FUEL_HYSTERESIS_OHM			 (2u)
+#define APP_VEHICLE_FUEL_HYSTERESIS_OHM			 (0u)
 #define APP_VEHICLE_FUEL_RES_CORRECT_NUMERATOR	 (94u)
 #define APP_VEHICLE_FUEL_RES_CORRECT_DENOMINATOR (100u)
 #define APP_VEHICLE_ODOMETER_PULSES_PER_KM		 (2800u)
@@ -177,7 +177,7 @@ static uint16_t App_Vehicle_ConfirmDisplayU16(uint16_t sample, uint16_t *display
 	}
 
 	delta = (sample > *display) ? (uint16_t)(sample - *display)
-								  : (uint16_t)(*display - sample);
+								: (uint16_t)(*display - sample);
 	if (delta >= APP_VEHICLE_SPEED_FAST_FOLLOW_DELTA)
 	{
 		*candidate = sample;
