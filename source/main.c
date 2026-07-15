@@ -14,6 +14,13 @@
 
 #define SLEEP_TIME			1500
 #define APP_NORMAL_FUNCTION (1u)
+/*
+ * 低功耗 ADC 常开功耗测试：
+ * 1. DeepSleep 前不关闭 ADC/BGR，RTC 每 500 ms 唤醒后直接检查 IGN；
+ * 2. IGN 合法后恢复整机逻辑和 PB3，但 PB9 始终保持低，仪表不点亮。
+ * 测试完成后改为 0u，即可恢复原来的 ADC 间歇唤醒和正常点亮逻辑。
+ */
+#define APP_LPM_ADC_ALWAYS_ON_CURRENT_TEST (1u)
 void sys_init(void);
 
 static volatile uint8_t check_self_Start = 0; // 自检
@@ -44,12 +51,19 @@ int32_t main(void)
 			{
 				// 电门打开：上电
 				(void)Bsp_Gpio_Write(BspGpioIdPower, TRUE);
+
+#if (APP_LPM_ADC_ALWAYS_ON_CURRENT_TEST == 1u)
+				/* 功耗测试时只打开整机电源，强制关闭 LED 电源和驱动输出。 */
+				(void)LedPanel_OutputEnable(FALSE);
+				(void)Bsp_Gpio_Write(BspGpioIdLEDPower, FALSE);
+#else
 				(void)Bsp_Gpio_Write(BspGpioIdLEDPower, TRUE);
 
 				(void)LedPanel_OutputEnable(FALSE);
 				LedPanel_Clear();
 				LedPanel_Refresh();
 				(void)LedPanel_OutputEnable(TRUE);
+#endif
 
 				App_Vehicle_ResetSelfCheck();
 
@@ -99,7 +113,9 @@ int32_t main(void)
 		{
 			if (DeepSleep_cnt >= SLEEP_TIME)
 			{
+#if (APP_LPM_ADC_ALWAYS_ON_CURRENT_TEST == 0u)
 				DRV_ADC_DeInit();
+#endif
 				Bsp_Gpio_InitSleepPins();
 				BSP_WDT_Feed();
 				g_lpm_adc_checking = 1u;
@@ -112,14 +128,20 @@ int32_t main(void)
 				if (rtc_time_500ms_flag == 1u)
 				{
 					rtc_time_500ms_flag = 0u;
+
+#if (APP_LPM_ADC_ALWAYS_ON_CURRENT_TEST == 0u)
 					DRV_ADC_WakeupIgnCheck();
+#endif
 
 					if (TRUE == DRV_ADC_CheckIgnOnce(5u))
 					{
 						Bsp_Gpio_Init();
 						(void)DEV_SpeedRpm_Init();
 						(void)DRV_EEPROM_Init();
+
+#if (APP_LPM_ADC_ALWAYS_ON_CURRENT_TEST == 0u)
 						DRV_ADC_Wakeup();
+#endif
 
 						IGN_ON_OFF = 1u;
 						DeepSleep_cnt = 0u;
@@ -127,13 +149,17 @@ int32_t main(void)
 					}
 					else
 					{
+#if (APP_LPM_ADC_ALWAYS_ON_CURRENT_TEST == 0u)
 						DRV_ADC_DeInit();
+#endif
 						IGN_ON_OFF = 0u;
 					}
 				}
 				else
 				{
+#if (APP_LPM_ADC_ALWAYS_ON_CURRENT_TEST == 0u)
 					DRV_ADC_DeInit();
+#endif
 				}
 			}
 		}
