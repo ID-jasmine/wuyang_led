@@ -140,7 +140,7 @@ DevSpeedRpm_IsCaptureDeltaTooShort(const stc_dev_speed_rpm_state_t *state,
 	{
 		return FALSE;
 	}
-
+	// 间隔小于 1000 ticks，也就是小于 4 ms 的脉冲会被丢弃。
 	delta_ticks = timestamp - state->last_valid_timestamp;
 	short_delta_ticks = (s_u32TimerClockHz * DEV_SPEED_RPM_MIN_VALID_DELTA_US) / 1000000u;
 	if ((delta_ticks > 0u) && (delta_ticks < short_delta_ticks))
