@@ -18,10 +18,16 @@ static en_tim3_channel_t Bsp_Tim3Capture_GetTim3Channel(bsp_tim3_cap_ch_t ch)
 {
 	switch (ch)
 	{
+	case BSP_TIM3_CAP_CH0A:
+	case BSP_TIM3_CAP_CH0B:
+		return Tim3CH0;
+
 	case BSP_TIM3_CAP_CH1A:
+	case BSP_TIM3_CAP_CH1B:
 		return Tim3CH1;
 
 	case BSP_TIM3_CAP_CH2A:
+	case BSP_TIM3_CAP_CH2B:
 		return Tim3CH2;
 
 	default:
@@ -33,11 +39,23 @@ static en_tim3_irq_type_t Bsp_Tim3Capture_GetIrqType(bsp_tim3_cap_ch_t ch)
 {
 	switch (ch)
 	{
+	case BSP_TIM3_CAP_CH0A:
+		return Tim3CA0Irq;
+
+	case BSP_TIM3_CAP_CH0B:
+		return Tim3CB0Irq;
+
 	case BSP_TIM3_CAP_CH1A:
 		return Tim3CA1Irq;
 
+	case BSP_TIM3_CAP_CH1B:
+		return Tim3CB1Irq;
+
 	case BSP_TIM3_CAP_CH2A:
 		return Tim3CA2Irq;
+
+	case BSP_TIM3_CAP_CH2B:
+		return Tim3CB2Irq;
 
 	default:
 		return Tim3CA0Irq;
@@ -48,11 +66,23 @@ static en_tim3_m23_ccrx_t Bsp_Tim3Capture_GetCcrSel(bsp_tim3_cap_ch_t ch)
 {
 	switch (ch)
 	{
+	case BSP_TIM3_CAP_CH0A:
+		return Tim3CCR0A;
+
+	case BSP_TIM3_CAP_CH0B:
+		return Tim3CCR0B;
+
 	case BSP_TIM3_CAP_CH1A:
 		return Tim3CCR1A;
 
+	case BSP_TIM3_CAP_CH1B:
+		return Tim3CCR1B;
+
 	case BSP_TIM3_CAP_CH2A:
 		return Tim3CCR2A;
+
+	case BSP_TIM3_CAP_CH2B:
+		return Tim3CCR2B;
 
 	default:
 		return Tim3CCR0A;
