@@ -11,10 +11,10 @@
 #include "drv_input.h"
 #include "drv_rtc.h"
 #include "led_panel.h"
+#include "product_config.h"
+#include "system_runtime.h"
 
-#define SLEEP_TIME								  1500
-#define APP_NORMAL_FUNCTION						  (1u)
-void sys_init(void);
+#define SLEEP_TIME PRODUCT_DEEP_SLEEP_DELAY_MS
 
 static volatile uint8_t check_self_Start = 0; // 自检
 static volatile uint8_t IGN_ON_OFF = 0;		  // 电门
@@ -26,9 +26,15 @@ static volatile uint8_t g_lpm_adc_checking = 0u;
 
 int32_t main(void)
 {
-	sys_init();
+	if (Ok != SystemRuntime_Init())
+	{
+		/* 配置冲突或关键模块初始化失败时保持安全停机。 */
+		while (1)
+		{
+		}
+	}
 
-#if (APP_NORMAL_FUNCTION == 0u)
+#if (PRODUCT_NORMAL_FUNCTION == 0u)
 	(void)DRV_EEPROM_ClearMileageAreas();
 
 	while (1)
@@ -99,29 +105,22 @@ int32_t main(void)
 		{
 			if (DeepSleep_cnt >= SLEEP_TIME)
 			{
-				DRV_ADC_DeInit();
-				Bsp_Gpio_InitSleepPins();
-				BSP_WDT_Feed();
+				SystemRuntime_PrepareDeepSleep();
 				g_lpm_adc_checking = 1u;
 
 				BSP_LPM_EnterDeepSleep();
 
-				BSP_LPM_RestoreClockAfterWakeup();
-				BSP_WDT_Feed();
+				SystemRuntime_RestoreClockAfterWake();
 
 				if (rtc_time_500ms_flag == 1u)
 				{
 					rtc_time_500ms_flag = 0u;
 
-					DRV_ADC_WakeupIgnCheck();
+					SystemRuntime_WakeupIgnCheck();
 
 					if (TRUE == DRV_ADC_CheckIgnOnce(5u))
 					{
-						Bsp_Gpio_Init();
-						(void)DEV_SpeedRpm_Init();
-						(void)DRV_EEPROM_Init();
-
-						DRV_ADC_Wakeup();
+						SystemRuntime_ResumeAfterIgn();
 
 						IGN_ON_OFF = 1u;
 						DeepSleep_cnt = 0u;
@@ -129,13 +128,13 @@ int32_t main(void)
 					}
 					else
 					{
-						DRV_ADC_DeInit();
+						SystemRuntime_AbortIgnCheck();
 						IGN_ON_OFF = 0u;
 					}
 				}
 				else
 				{
-					DRV_ADC_DeInit();
+					SystemRuntime_AbortIgnCheck();
 				}
 			}
 		}
@@ -150,29 +149,12 @@ int32_t main(void)
 #endif
 }
 
-void sys_init(void)
-{
-	BSP_SysTick_Init();
-	(void)Bsp_Gpio_Init();
-	(void)DRV_EEPROM_Init();
-	(void)DRV_Input_Init();
-	DRV_Button_Init();
-	(void)DRV_RTC_Init(12, 0); // 明确忽略返回值
-	(void)DEV_SpeedRpm_Init();
-	(void)LedPanel_Init();
-	DRV_ADC_Init();
-	BSP_WDT_Init();
-}
-
 void SysTick_IRQHandler(void)
 {
 	// 1ms,一次
 	BSP_SYS_TickInc();
 
-	DEV_SpeedRpm_Task1ms();
-	DRV_Input_Task1ms();
-	DRV_ADC_Task1ms();
-	DRV_Button_Task1ms();
+	SystemRuntime_Task1ms();
 
 	if (g_lpm_adc_checking)
 	{

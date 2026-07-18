@@ -1,7 +1,6 @@
 #ifndef __DRV_ADC_H__
 #define __DRV_ADC_H__
 
-#include "bsp_adc.h"
 #include "ddl.h"
 
 #ifdef __cplusplus
@@ -10,6 +9,19 @@ extern "C"
 #endif
 
 #define DRV_ADC_RESISTANCE_INVALID_OHM (0xFFFFu)
+
+	typedef enum
+	{
+		DrvAdcSignalFuel = 0u,
+		DrvAdcSignalPowerReference,
+		DrvAdcSignalWaterTemp,
+		DrvAdcSignalIgn,
+		DrvAdcSignalBrightness,
+		DrvAdcSignalLeftTurn,
+		DrvAdcSignalHighBeam,
+		DrvAdcSignalRightTurn,
+		DrvAdcSignalCount,
+	} en_drv_adc_signal_t;
 
 	void DRV_ADC_Init(void);
 	void DRV_ADC_Task1ms(void);
@@ -20,8 +32,8 @@ extern "C"
 	boolean_t DRV_ADC_IsRightTurnActive(void);
 	boolean_t DRV_ADC_IsHighBeamActive(void);
 	boolean_t DRV_ADC_IsIgnLowVoltageActive(void);
-	uint16_t DRV_ADC_GetAvg(en_bsp_adc_id_t id);
-	uint16_t DRV_ADC_GetResistanceOhm(en_bsp_adc_id_t id);
+	uint16_t DRV_ADC_GetAvg(en_drv_adc_signal_t signal);
+	uint16_t DRV_ADC_GetResistanceOhm(en_drv_adc_signal_t signal);
 	void DRV_ADC_DeInit(void);
 	void DRV_ADC_Wakeup(void);
 	void DRV_ADC_WakeupIgnCheck(void);

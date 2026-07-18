@@ -2,151 +2,12 @@
 #include "gpio.h"
 #include "sysctrl.h"
 
-typedef struct stc_bsp_gpio_pin_cfg
-{
-	en_gpio_port_t port;
-	en_gpio_pin_t pin;
-	en_bsp_gpio_dir_t dir;
-	en_gpio_pu_t pu;
-	en_gpio_pd_t pd;
-	boolean_t init_level;
-} stc_bsp_gpio_pin_cfg_t;
-
-typedef struct stc_bsp_gpio_nc_pin_cfg
-{
-	en_gpio_port_t port;
-	en_gpio_pin_t pin;
-} stc_bsp_gpio_nc_pin_cfg_t;
-
-static const stc_bsp_gpio_pin_cfg_t s_astBspGpioPinCfg[BspGpioIdCount] = {
-	[BspGpioIdPower] = {.port = GpioPortB,
-						.pin = GpioPin3,
-						.dir = BspGpioDirOut,
-						.pu = GpioPuDisable,
-						.pd = GpioPdDisable,
-						.init_level = FALSE},
-	[BspGpioIdPositionLamp] = {.port = GpioPortA,
-							   .pin = GpioPin3,
-							   .dir = BspGpioDirIn,
-							   .pu = GpioPuDisable,
-							   .pd = GpioPdDisable,
-							   .init_level = FALSE},
-	[BspGpioIdSwK1] = {.port = GpioPortD,
-					   .pin = GpioPin6,
-					   .dir = BspGpioDirIn,
-					   .pu = GpioPuEnable,
-					   .pd = GpioPdDisable,
-					   .init_level = FALSE},
-	[BspGpioIdSwK2] = {.port = GpioPortD,
-					   .pin = GpioPin7,
-					   .dir = BspGpioDirIn,
-					   .pu = GpioPuEnable,
-					   .pd = GpioPdDisable,
-					   .init_level = FALSE},
-	[BspGpioIdGearN] = {.port = GpioPortB,
-						.pin = GpioPin1,
-						.dir = BspGpioDirIn,
-						.pu = GpioPuDisable,
-						.pd = GpioPdDisable,
-						.init_level = FALSE},
-	[BspGpioIdGear1] = {.port = GpioPortD,
-						.pin = GpioPin1,
-						.dir = BspGpioDirIn,
-						.pu = GpioPuDisable,
-						.pd = GpioPdDisable,
-						.init_level = FALSE},
-	[BspGpioIdGear2] = {.port = GpioPortA,
-						.pin = GpioPin7,
-						.dir = BspGpioDirIn,
-						.pu = GpioPuDisable,
-						.pd = GpioPdDisable,
-						.init_level = FALSE},
-	[BspGpioIdGear3] = {.port = GpioPortB,
-						.pin = GpioPin0,
-						.dir = BspGpioDirIn,
-						.pu = GpioPuDisable,
-						.pd = GpioPdDisable,
-						.init_level = FALSE},
-	[BspGpioIdGear4] = {.port = GpioPortB,
-						.pin = GpioPin2,
-						.dir = BspGpioDirIn,
-						.pu = GpioPuDisable,
-						.pd = GpioPdDisable,
-						.init_level = FALSE},
-	[BspGpioIdGear5] = {.port = GpioPortC,
-						.pin = GpioPin13,
-						.dir = BspGpioDirIn,
-						.pu = GpioPuDisable,
-						.pd = GpioPdDisable,
-						.init_level = FALSE},
-	[BspGpioIdGear6] = {.port = GpioPortD,
-						.pin = GpioPin0,
-						.dir = BspGpioDirIn,
-						.pu = GpioPuDisable,
-						.pd = GpioPdDisable,
-						.init_level = FALSE},
-	[BspGpioIdEnginefault] = {.port = GpioPortB,
-							  .pin = GpioPin10,
-							  .dir = BspGpioDirIn,
-							  .pu = GpioPuDisable,
-							  .pd = GpioPdDisable,
-							  .init_level = FALSE},
-	[BspGpioIdLEDPower] = {.port = GpioPortB,
-						   .pin = GpioPin9,
-						   .dir = BspGpioDirOut,
-						   .pu = GpioPuDisable,
-						   .pd = GpioPdDisable,
-						   .init_level = FALSE},
-	[BspGpioIdEepromScl] = {.port = GpioPortB,
-							.pin = GpioPin6,
-							.dir = BspGpioDirOut,
-							.pu = GpioPuDisable,
-							.pd = GpioPdDisable,
-							.init_level = TRUE},
-	[BspGpioIdEepromSda] = {.port = GpioPortB,
-							.pin = GpioPin7,
-							.dir = BspGpioDirOut,
-							.pu = GpioPuDisable,
-							.pd = GpioPdDisable,
-							.init_level = TRUE},
-};
-
-static const stc_bsp_gpio_nc_pin_cfg_t s_astBspGpioNcPinCfg[] = {
-	{GpioPortB, GpioPin8},	{GpioPortB, GpioPin5},	{GpioPortB, GpioPin4},
-	{GpioPortA, GpioPin15}, {GpioPortA, GpioPin12}, {GpioPortA, GpioPin11},
-};
-
-static const stc_bsp_gpio_nc_pin_cfg_t s_astBspGpioSleepAnalogPinCfg[] = {
-	{GpioPortA, GpioPin9},
-	{GpioPortA, GpioPin10},
-};
-
-static const en_bsp_gpio_id_t s_aBspGpioSleepPinIds[] = {
-	BspGpioIdPositionLamp, BspGpioIdSwK1,  BspGpioIdSwK2,		 BspGpioIdGearN,
-	BspGpioIdGear1,		   BspGpioIdGear2, BspGpioIdGear3,		 BspGpioIdGear4,
-	BspGpioIdGear5,		   BspGpioIdGear6, BspGpioIdEnginefault, BspGpioIdEepromScl,
-	BspGpioIdEepromSda,
-};
-
-static const en_bsp_gpio_id_t s_aBspGpioSleepDefaultOutputIds[] = {
-	BspGpioIdPower,
-	BspGpioIdLEDPower,
-};
-
-enum
-{
-	BspGpioNcPinCount = sizeof(s_astBspGpioNcPinCfg) / sizeof(s_astBspGpioNcPinCfg[0]),
-	BspGpioSleepAnalogPinCount =
-		sizeof(s_astBspGpioSleepAnalogPinCfg) / sizeof(s_astBspGpioSleepAnalogPinCfg[0]),
-	BspGpioSleepPinCount =
-		sizeof(s_aBspGpioSleepPinIds) / sizeof(s_aBspGpioSleepPinIds[0]),
-	BspGpioSleepDefaultOutputCount = sizeof(s_aBspGpioSleepDefaultOutputIds) /
-									 sizeof(s_aBspGpioSleepDefaultOutputIds[0]),
-};
-
 static en_result_t BspGpio_CheckId(en_bsp_gpio_id_t id)
 {
-	if (id >= BspGpioIdCount)
+	const stc_board_pin_cfg_t *pstcPinCfg;
+
+	pstcPinCfg = Board_GetPinConfig(id);
+	if ((NULL == pstcPinCfg) || (FALSE == pstcPinCfg->enabled))
 	{
 		return ErrorInvalidParameter;
 	}
@@ -156,7 +17,7 @@ static en_result_t BspGpio_CheckId(en_bsp_gpio_id_t id)
 
 static en_result_t BspGpio_SetAnalogModeById(en_bsp_gpio_id_t id)
 {
-	const stc_bsp_gpio_pin_cfg_t *pstcPinCfg;
+	const stc_board_pin_cfg_t *pstcPinCfg;
 	en_result_t enRet;
 
 	enRet = BspGpio_CheckId(id);
@@ -165,15 +26,13 @@ static en_result_t BspGpio_SetAnalogModeById(en_bsp_gpio_id_t id)
 		return enRet;
 	}
 
-	pstcPinCfg = &s_astBspGpioPinCfg[id];
-	Gpio_SetAnalogMode(pstcPinCfg->port, pstcPinCfg->pin);
-
-	return Ok;
+	pstcPinCfg = Board_GetPinConfig(id);
+	return Gpio_SetAnalogMode(pstcPinCfg->port, pstcPinCfg->pin);
 }
 
 static en_result_t BspGpio_SetDefaultOutputById(en_bsp_gpio_id_t id)
 {
-	const stc_bsp_gpio_pin_cfg_t *pstcPinCfg;
+	const stc_board_pin_cfg_t *pstcPinCfg;
 	en_result_t enRet;
 
 	enRet = BspGpio_CheckId(id);
@@ -182,8 +41,8 @@ static en_result_t BspGpio_SetDefaultOutputById(en_bsp_gpio_id_t id)
 		return enRet;
 	}
 
-	pstcPinCfg = &s_astBspGpioPinCfg[id];
-	if (BspGpioDirOut != pstcPinCfg->dir)
+	pstcPinCfg = Board_GetPinConfig(id);
+	if ((BoardPinModeGpio != pstcPinCfg->run_mode) || (GpioDirOut != pstcPinCfg->dir))
 	{
 		return ErrorInvalidParameter;
 	}
@@ -199,8 +58,18 @@ static en_result_t BspGpio_SetDefaultOutputById(en_bsp_gpio_id_t id)
 static en_result_t BspGpio_InitImpl(en_bsp_gpio_id_t id)
 {
 	stc_gpio_cfg_t stcGpioCfg;
-	const stc_bsp_gpio_pin_cfg_t *pstcPinCfg;
+	const stc_board_pin_cfg_t *pstcPinCfg;
 	en_result_t enRet;
+
+	pstcPinCfg = Board_GetPinConfig(id);
+	if (NULL == pstcPinCfg)
+	{
+		return ErrorInvalidParameter;
+	}
+	if (FALSE == pstcPinCfg->enabled)
+	{
+		return Ok;
+	}
 
 	enRet = BspGpio_CheckId(id);
 	if (Ok != enRet)
@@ -210,13 +79,21 @@ static en_result_t BspGpio_InitImpl(en_bsp_gpio_id_t id)
 
 	Sysctrl_SetPeripheralGate(SysctrlPeripheralGpio, TRUE);
 
-	pstcPinCfg = &s_astBspGpioPinCfg[id];
+	if (BoardPinModePeripheral == pstcPinCfg->run_mode)
+	{
+		return Ok;
+	}
+	if (BoardPinModeAnalog == pstcPinCfg->run_mode)
+	{
+		return Gpio_SetAnalogMode(pstcPinCfg->port, pstcPinCfg->pin);
+	}
 
-	stcGpioCfg.enDir = (BspGpioDirIn == pstcPinCfg->dir) ? GpioDirIn : GpioDirOut;
+	DDL_ZERO_STRUCT(stcGpioCfg);
+	stcGpioCfg.enDir = pstcPinCfg->dir;
 	stcGpioCfg.enDrv = GpioDrvH;
-	stcGpioCfg.enPu = pstcPinCfg->pu;
-	stcGpioCfg.enPd = pstcPinCfg->pd;
-	stcGpioCfg.enOD = GpioOdDisable;
+	stcGpioCfg.enPu = pstcPinCfg->pull_up;
+	stcGpioCfg.enPd = pstcPinCfg->pull_down;
+	stcGpioCfg.enOD = pstcPinCfg->open_drain;
 	stcGpioCfg.enCtrlMode = GpioFastIO;
 
 	enRet = Gpio_Init(pstcPinCfg->port, pstcPinCfg->pin, &stcGpioCfg);
@@ -225,7 +102,7 @@ static en_result_t BspGpio_InitImpl(en_bsp_gpio_id_t id)
 		return enRet;
 	}
 
-	if (BspGpioDirOut == pstcPinCfg->dir)
+	if (GpioDirOut == pstcPinCfg->dir)
 	{
 		(void)Bsp_Gpio_Write(id, pstcPinCfg->init_level);
 	}
@@ -235,21 +112,25 @@ static en_result_t BspGpio_InitImpl(en_bsp_gpio_id_t id)
 
 static boolean_t BspGpio_ReadImpl(en_bsp_gpio_id_t id)
 {
-	const stc_bsp_gpio_pin_cfg_t *pstcPinCfg;
+	const stc_board_pin_cfg_t *pstcPinCfg;
 
 	if (Ok != BspGpio_CheckId(id))
 	{
 		return FALSE;
 	}
 
-	pstcPinCfg = &s_astBspGpioPinCfg[id];
+	pstcPinCfg = Board_GetPinConfig(id);
+	if (BoardPinModeGpio != pstcPinCfg->run_mode)
+	{
+		return FALSE;
+	}
 
 	return Gpio_GetInputIO(pstcPinCfg->port, pstcPinCfg->pin);
 }
 
 static en_result_t BspGpio_WriteImpl(en_bsp_gpio_id_t id, boolean_t level)
 {
-	const stc_bsp_gpio_pin_cfg_t *pstcPinCfg;
+	const stc_board_pin_cfg_t *pstcPinCfg;
 	en_result_t enRet;
 
 	enRet = BspGpio_CheckId(id);
@@ -258,8 +139,8 @@ static en_result_t BspGpio_WriteImpl(en_bsp_gpio_id_t id, boolean_t level)
 		return enRet;
 	}
 
-	pstcPinCfg = &s_astBspGpioPinCfg[id];
-	if (BspGpioDirOut != pstcPinCfg->dir)
+	pstcPinCfg = Board_GetPinConfig(id);
+	if ((BoardPinModeGpio != pstcPinCfg->run_mode) || (GpioDirOut != pstcPinCfg->dir))
 	{
 		return ErrorInvalidParameter;
 	}
@@ -274,16 +155,7 @@ static en_result_t BspGpio_WriteImpl(en_bsp_gpio_id_t id, boolean_t level)
 
 static en_result_t BspGpio_InitNcPinsImpl(void)
 {
-	uint8_t i;
-
-	Sysctrl_SetPeripheralGate(SysctrlPeripheralGpio, TRUE);
-
-	for (i = 0u; i < BspGpioNcPinCount; i++)
-	{
-		Gpio_SetAnalogMode(s_astBspGpioNcPinCfg[i].port, s_astBspGpioNcPinCfg[i].pin);
-	}
-
-	return Ok;
+	return Board_ConfigValidate();
 }
 
 static en_result_t BspGpio_InitSleepPinsImpl(void)
@@ -293,28 +165,29 @@ static en_result_t BspGpio_InitSleepPinsImpl(void)
 
 	Sysctrl_SetPeripheralGate(SysctrlPeripheralGpio, TRUE);
 
-	for (i = 0u; i < BspGpioSleepDefaultOutputCount; i++)
+	for (i = 0u; i < BoardPinIdCount; i++)
 	{
-		enRet = BspGpio_SetDefaultOutputById(s_aBspGpioSleepDefaultOutputIds[i]);
-		if (Ok != enRet)
+		if (FALSE == g_astBoardPinCfg[i].enabled)
 		{
-			return enRet;
+			continue;
 		}
-	}
 
-	for (i = 0u; i < BspGpioSleepPinCount; i++)
-	{
-		enRet = BspGpio_SetAnalogModeById(s_aBspGpioSleepPinIds[i]);
-		if (Ok != enRet)
+		switch (g_astBoardPinCfg[i].sleep_mode)
 		{
-			return enRet;
-		}
-	}
+		case BoardPinSleepAnalog:
+			enRet = BspGpio_SetAnalogModeById((en_bsp_gpio_id_t)i);
+			break;
 
-	for (i = 0u; i < BspGpioSleepAnalogPinCount; i++)
-	{
-		enRet = Gpio_SetAnalogMode(s_astBspGpioSleepAnalogPinCfg[i].port,
-								   s_astBspGpioSleepAnalogPinCfg[i].pin);
+		case BoardPinSleepDefaultOutput:
+			enRet = BspGpio_SetDefaultOutputById((en_bsp_gpio_id_t)i);
+			break;
+
+		case BoardPinSleepKeep:
+		default:
+			enRet = Ok;
+			break;
+		}
+
 		if (Ok != enRet)
 		{
 			return enRet;
@@ -349,6 +222,12 @@ en_result_t Bsp_Gpio_Init(void)
 	uint8_t i;
 	en_result_t enRet;
 	en_result_t enFinalRet = Ok;
+
+	enRet = Board_ConfigValidate();
+	if (Ok != enRet)
+	{
+		return enRet;
+	}
 
 	for (i = 0u; i < g_stcBspGpio.count; i++)
 	{

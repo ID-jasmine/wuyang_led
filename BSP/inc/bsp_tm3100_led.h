@@ -1,6 +1,7 @@
 #ifndef __BSP_TM3100_LED_H__
 #define __BSP_TM3100_LED_H__
 
+#include "board_config.h"
 #include "ddl.h"
 
 #ifdef __cplusplus
@@ -8,8 +9,8 @@ extern "C"
 {
 #endif
 
-#define BSP_TM3100_CHIP_COUNT		(15u)
-#define BSP_TM3100_CHANNEL_PER_CHIP (16u)
+#define BSP_TM3100_CHIP_COUNT		BOARD_TM3100_CHIP_COUNT
+#define BSP_TM3100_CHANNEL_PER_CHIP BOARD_TM3100_CHANNELS_PER_CHIP
 #define BSP_TM3100_LED_COUNT		(BSP_TM3100_CHIP_COUNT * BSP_TM3100_CHANNEL_PER_CHIP)
 
 	typedef enum en_bsp_tm3100_bit_order

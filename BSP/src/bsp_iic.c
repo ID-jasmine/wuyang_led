@@ -2,8 +2,6 @@
 
 #include "gpio.h"
 
-#define BSP_IIC_CPU_HZ			   (16000000u)
-#define BSP_IIC_TARGET_HZ		   (100000u)
 #define BSP_IIC_DELAY_LOOP_CYCLES  (20u)
 #define BSP_IIC_MIN_DELAY_LOOPS	   (4u)
 #define BSP_IIC_MIN_ACK_DELAY_LOOPS (2u)
@@ -49,13 +47,7 @@ static const stc_bsp_iic_gpio_ops_t s_stcBspIicGpioOps = {
 	.read = Gpio_GetInputIO,
 };
 
-static struct stc_bsp_iic_handle s_astBspIicHandle[BspIicBusIdCount] = {
-	[BspIicBusIdEeprom] = {
-		.scl = {.port = GpioPortB, .pin = GpioPin6},
-		.sda = {.port = GpioPortB, .pin = GpioPin7},
-		.gpio = &s_stcBspIicGpioOps,
-	},
-};
+static struct stc_bsp_iic_handle s_astBspIicHandle[BspIicBusIdCount];
 
 static void BspIic_Delay(volatile uint32_t loops)
 {
@@ -70,10 +62,10 @@ static uint32_t BspIic_CalcDelayLoops(uint32_t target_hz)
 
 	if (0u == target_hz)
 	{
-		target_hz = BSP_IIC_TARGET_HZ;
+		target_hz = 100000u;
 	}
 
-	loops = BSP_IIC_CPU_HZ / (target_hz * 2u * BSP_IIC_DELAY_LOOP_CYCLES);
+	loops = BOARD_CPU_CLOCK_HZ / (target_hz * 2u * BSP_IIC_DELAY_LOOP_CYCLES);
 	if (loops < BSP_IIC_MIN_DELAY_LOOPS)
 	{
 		loops = BSP_IIC_MIN_DELAY_LOOPS;
@@ -168,7 +160,7 @@ static void BspIic_PinDirOut(IIC_Handle_t *iic, const stc_bsp_iic_pin_t *pin)
 	(void)iic->gpio->init(pin->port, pin->pin, &stcGpioCfg);
 }
 
-static en_result_t BspIic_GpioInit(IIC_Handle_t *iic)
+static en_result_t BspIic_GpioInit(IIC_Handle_t *iic, uint32_t target_hz)
 {
 	if (Ok != BspIic_CheckHandle(iic))
 	{
@@ -176,7 +168,7 @@ static en_result_t BspIic_GpioInit(IIC_Handle_t *iic)
 	}
 
 	Sysctrl_SetPeripheralGate(SysctrlPeripheralGpio, TRUE);
-	iic->delay_loops = BspIic_CalcDelayLoops(BSP_IIC_TARGET_HZ);
+	iic->delay_loops = BspIic_CalcDelayLoops(target_hz);
 	iic->ack_delay_loops = iic->delay_loops / 2u;
 	if (iic->ack_delay_loops < BSP_IIC_MIN_ACK_DELAY_LOOPS)
 	{
@@ -195,6 +187,10 @@ static en_result_t BspIic_GpioInit(IIC_Handle_t *iic)
 en_result_t BSP_IIC_InitBus(en_bsp_iic_bus_id_t bus_id)
 {
 	en_result_t enRet;
+	IIC_Handle_t *iic;
+	const stc_board_iic_cfg_t *pstcBusCfg;
+	const stc_board_pin_cfg_t *pstcSclPinCfg;
+	const stc_board_pin_cfg_t *pstcSdaPinCfg;
 
 	enRet = BspIic_CheckId(bus_id);
 	if (Ok != enRet)
@@ -202,7 +198,27 @@ en_result_t BSP_IIC_InitBus(en_bsp_iic_bus_id_t bus_id)
 		return enRet;
 	}
 
-	return BspIic_GpioInit(&s_astBspIicHandle[bus_id]);
+	pstcBusCfg = &g_astBoardIicCfg[bus_id];
+	if (FALSE == pstcBusCfg->enabled)
+	{
+		return ErrorUninitialized;
+	}
+
+	pstcSclPinCfg = Board_GetPinConfig(pstcBusCfg->scl_pin_id);
+	pstcSdaPinCfg = Board_GetPinConfig(pstcBusCfg->sda_pin_id);
+	if ((NULL == pstcSclPinCfg) || (NULL == pstcSdaPinCfg))
+	{
+		return ErrorInvalidParameter;
+	}
+
+	iic = &s_astBspIicHandle[bus_id];
+	iic->gpio = &s_stcBspIicGpioOps;
+	iic->scl.port = pstcSclPinCfg->port;
+	iic->scl.pin = pstcSclPinCfg->pin;
+	iic->sda.port = pstcSdaPinCfg->port;
+	iic->sda.pin = pstcSdaPinCfg->pin;
+
+	return BspIic_GpioInit(iic, pstcBusCfg->target_hz);
 }
 
 IIC_Handle_t *BSP_IIC_GetHandle(en_bsp_iic_bus_id_t bus_id)

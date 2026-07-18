@@ -3,6 +3,19 @@
 !/source/
 /source/*
 !/source/main.c
+!/source/system_runtime.c
+!/source/system_runtime.h
+
+!/BOARD/
+/BOARD/*
+!/BOARD/inc/
+!/BOARD/inc/*.h
+!/BOARD/src/
+!/BOARD/src/*.c
+
+!/CONFIG/
+/CONFIG/*
+!/CONFIG/*.h
 
 !/BSP/
 !/BSP/inc/*
@@ -13,6 +26,14 @@
 !/DEV/src/*
 
 !/APP/
+
+!/doc/
+/doc/*
+!/doc/*.md
+
+!/MDK/
+/MDK/*
+!/MDK/gpio_output.uvprojx
 
 !.gitignore
 !.clang-format

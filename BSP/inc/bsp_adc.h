@@ -1,6 +1,7 @@
 #ifndef __BSP_ADC_H__
 #define __BSP_ADC_H__
 
+#include "board_config.h"
 #include "ddl.h"
 
 #ifdef __cplusplus
@@ -8,18 +9,17 @@ extern "C"
 {
 #endif
 
-	typedef enum en_bsp_adc_id
-	{
-		BspAdcIdFuel = 0u,
-		BspAdcIdAdPower,
-		BspAdcIdWaterTemp,
-		BspAdcIdIgn,
-		BspAdcIdZmIn,
-		BspAdcIdLeftTurn,
-		BspAdcIdHighBeam,
-		BspAdcIdRightTurn,
-		BspAdcIdCount,
-	} en_bsp_adc_id_t;
+	typedef en_board_adc_id_t en_bsp_adc_id_t;
+
+#define BspAdcIdFuel       BoardAdcIdFuel
+#define BspAdcIdAdPower    BoardAdcIdPower
+#define BspAdcIdWaterTemp  BoardAdcIdWaterTemp
+#define BspAdcIdIgn        BoardAdcIdIgn
+#define BspAdcIdZmIn       BoardAdcIdBrightness
+#define BspAdcIdLeftTurn   BoardAdcIdLeftTurn
+#define BspAdcIdHighBeam   BoardAdcIdHighBeam
+#define BspAdcIdRightTurn  BoardAdcIdRightTurn
+#define BspAdcIdCount      BoardAdcIdCount
 
 	void BSP_ADC_Init(void);
 	void BSP_ADC_Start(void);

@@ -472,7 +472,7 @@ static void App_Vehicle_ShowMileage(void)
 #elif (APP_VEHICLE_TEST_SHOW_LIGHT_RAW_ON_ODO != 0u)
 	LedPanel_Set(LedPanelIdOdo, TRUE);
 	LedPanel_Set(LedPanelIdMileageKm, TRUE);
-	(void)LedPanel_ShowTotalOdometer(DRV_ADC_IsReady() ? DRV_ADC_GetAvg(BspAdcIdZmIn)
+	(void)LedPanel_ShowTotalOdometer(DRV_ADC_IsReady() ? DRV_ADC_GetAvg(DrvAdcSignalBrightness)
 													   : 0u);
 #else
 	LedPanel_Set(s_bVehicleMileageTripDisplay ? LedPanelIdTrip : LedPanelIdOdo, TRUE);
@@ -791,7 +791,7 @@ static void App_Vehicle_UpdateBrightness(void)
 		return;
 	}
 
-	raw = DRV_ADC_GetAvg(BspAdcIdZmIn);
+	raw = DRV_ADC_GetAvg(DrvAdcSignalBrightness);
 	if (raw <= APP_VEHICLE_BRIGHTNESS_DARK_RAW)
 	{
 		brightness = APP_VEHICLE_BRIGHTNESS_MIN;
@@ -833,7 +833,7 @@ static uint8_t App_Vehicle_GetFuelTargetBars(void)
 {
 	uint16_t resistance_ohm;
 
-	resistance_ohm = DRV_ADC_GetResistanceOhm(BspAdcIdFuel);
+	resistance_ohm = DRV_ADC_GetResistanceOhm(DrvAdcSignalFuel);
 	if (DRV_ADC_RESISTANCE_INVALID_OHM == resistance_ohm)
 	{
 		return APP_VEHICLE_FUEL_INVALID_BARS;

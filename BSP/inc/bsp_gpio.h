@@ -1,6 +1,7 @@
 #ifndef __BSP_GPIO_H__
 #define __BSP_GPIO_H__
 
+#include "board_config.h"
 #include "ddl.h"
 
 #ifdef __cplusplus
@@ -8,25 +9,25 @@ extern "C"
 {
 #endif
 
-	typedef enum
-	{
-		BspGpioIdPower = 0u,
-		BspGpioIdPositionLamp,
-		BspGpioIdSwK1,
-		BspGpioIdSwK2,
-		BspGpioIdGearN,
-		BspGpioIdGear1,
-		BspGpioIdGear2,
-		BspGpioIdGear3,
-		BspGpioIdGear4,
-		BspGpioIdGear5,
-		BspGpioIdGear6,
-		BspGpioIdEnginefault,
-		BspGpioIdLEDPower,
-		BspGpioIdEepromScl,
-		BspGpioIdEepromSda,
-		BspGpioIdCount,
-	} en_bsp_gpio_id_t;
+	typedef en_board_pin_id_t en_bsp_gpio_id_t;
+
+/* 兼容现有调用；物理定义以 BOARD 的逻辑引脚 ID 为准。 */
+#define BspGpioIdPower        BoardPinIdPower
+#define BspGpioIdPositionLamp BoardPinIdPositionLamp
+#define BspGpioIdSwK1         BoardPinIdSwK1
+#define BspGpioIdSwK2         BoardPinIdSwK2
+#define BspGpioIdGearN        BoardPinIdGearN
+#define BspGpioIdGear1        BoardPinIdGear1
+#define BspGpioIdGear2        BoardPinIdGear2
+#define BspGpioIdGear3        BoardPinIdGear3
+#define BspGpioIdGear4        BoardPinIdGear4
+#define BspGpioIdGear5        BoardPinIdGear5
+#define BspGpioIdGear6        BoardPinIdGear6
+#define BspGpioIdEnginefault  BoardPinIdEngineFault
+#define BspGpioIdLEDPower     BoardPinIdLedPower
+#define BspGpioIdEepromScl    BoardPinIdEepromScl
+#define BspGpioIdEepromSda    BoardPinIdEepromSda
+#define BspGpioIdCount        BoardPinIdCount
 
 	typedef enum
 	{
