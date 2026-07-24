@@ -40,9 +40,11 @@
 #define APP_VEHICLE_GEAR_BLINK_TICKS			 (5u)
 #define APP_VEHICLE_CLOCK_COLON_BLINK_TICKS		 (20u)
 #define APP_VEHICLE_FUEL_FAST_TICKS				 (30u)
-#define APP_VEHICLE_FUEL_SLOW_TICKS				 (600u) // 300 -- 15s
+#define APP_VEHICLE_FUEL_SLOW_TICKS				 (600u) // 300 -- 15s 600 -- 30s
 #define APP_VEHICLE_FUEL_POWERON_CONFIRM_TICKS	 (2u)
 #define APP_VEHICLE_FUEL_INVALID_BARS			 (1u)
+#define APP_VEHICLE_FUEL_OPEN_CIRCUIT_OHM		 (150u)
+#define APP_VEHICLE_FUEL_OPEN_CIRCUIT_VALUE		 (0xFFu)
 #define APP_VEHICLE_FUEL_HYSTERESIS_OHM			 (0u)
 #define APP_VEHICLE_FUEL_RES_CORRECT_NUMERATOR	 (94u)
 #define APP_VEHICLE_FUEL_RES_CORRECT_DENOMINATOR (100u)
@@ -84,6 +86,8 @@ static uint16_t s_u16VehicleFuelFastTick = 0u;
 static uint16_t s_u16VehicleFuelSlowTick = 0u;
 static uint8_t s_u8VehicleFuelPoweronCandidate = 0u;
 static uint8_t s_u8VehicleFuelPoweronCandidateTicks = 0u;
+static boolean_t s_bVehicleFuelOpenCircuit = FALSE;
+static uint8_t s_u8VehicleFuelOpenCircuitBars = 0u;
 static uint8_t s_u8VehicleGearBlinkTick = 0u;
 static boolean_t s_bVehicleGearBlinkOn = TRUE;
 static uint16_t s_u16VehicleDisplaySpeed = 0u;
@@ -836,12 +840,25 @@ static uint8_t App_Vehicle_GetFuelTargetBars(void)
 	resistance_ohm = DRV_ADC_GetResistanceOhm(BspAdcIdFuel);
 	if (DRV_ADC_RESISTANCE_INVALID_OHM == resistance_ohm)
 	{
+		/*
+		 * ADC 未准备好时仍按原来的 1 格处理；ADC 已准备好后仍无法计算
+		 * 阻值，通常表示油量输入已接近参考电压，也按开路异常处理。
+		 */
+		if (TRUE == DRV_ADC_IsReady())
+		{
+			return APP_VEHICLE_FUEL_OPEN_CIRCUIT_VALUE;
+		}
 		return APP_VEHICLE_FUEL_INVALID_BARS;
 	}
+	/* 油量格数和开路门限统一使用实测更接近真实阻值的 94% 校正值。 */
 	resistance_ohm =
 		(uint16_t)(((uint32_t)resistance_ohm * APP_VEHICLE_FUEL_RES_CORRECT_NUMERATOR +
 					(APP_VEHICLE_FUEL_RES_CORRECT_DENOMINATOR / 2u)) /
 				   APP_VEHICLE_FUEL_RES_CORRECT_DENOMINATOR);
+	if (resistance_ohm > APP_VEHICLE_FUEL_OPEN_CIRCUIT_OHM)
+	{
+		return APP_VEHICLE_FUEL_OPEN_CIRCUIT_VALUE;
+	}
 
 	if (TRUE == s_bVehicleFuelInited)
 	{
@@ -981,6 +998,35 @@ static uint8_t App_Vehicle_GetCurrentFuelBars(void)
 	uint8_t target_bars;
 
 	target_bars = App_Vehicle_GetFuelTargetBars();
+	if (APP_VEHICLE_FUEL_OPEN_CIRCUIT_VALUE == target_bars)
+	{
+		/*
+		 * 复用 1 格闪烁的 250 ms 节拍，每次节拍推进一格：
+		 * 1 -> 2 -> ... -> 8 -> 0，循环形成流水异常提示。
+		 */
+		if (FALSE == s_bVehicleFuelOpenCircuit)
+		{
+			s_bVehicleFuelOpenCircuit = TRUE;
+			s_u8VehicleFuelOpenCircuitBars = 1u;
+		}
+		else if (0u == s_u8VehicleGearBlinkTick)
+		{
+			s_u8VehicleFuelOpenCircuitBars++;
+			if (s_u8VehicleFuelOpenCircuitBars > LED_PANEL_FUEL_BAR_COUNT)
+			{
+				s_u8VehicleFuelOpenCircuitBars = 0u;
+			}
+		}
+
+		/* 恢复正常后重新快速确认油量，避免沿用异常前的旧格数。 */
+		s_bVehicleFuelInited = FALSE;
+		s_u16VehicleFuelFastTick = 0u;
+		s_u16VehicleFuelSlowTick = 0u;
+		s_u8VehicleFuelPoweronCandidateTicks = 0u;
+		return APP_VEHICLE_FUEL_OPEN_CIRCUIT_VALUE;
+	}
+
+	s_bVehicleFuelOpenCircuit = FALSE;
 	if ((FALSE == s_bVehicleFuelInited) ||
 		(s_u16VehicleFuelFastTick < APP_VEHICLE_FUEL_FAST_TICKS))
 	{
@@ -1023,10 +1069,16 @@ static void App_Vehicle_ShowFuel(void)
 	boolean_t low_fuel_blink_on;
 
 	fuel_bars = App_Vehicle_GetCurrentFuelBars();
-	low_fuel_blink_on = (boolean_t)((fuel_bars != 1u) || (TRUE == s_bVehicleGearBlinkOn));
 
 	LedPanel_Set(LedPanelIdFuelWhite, FALSE);
 	LedPanel_Set(LedPanelIdFuelYellow, TRUE);
+	if (APP_VEHICLE_FUEL_OPEN_CIRCUIT_VALUE == fuel_bars)
+	{
+		LedPanel_ShowFuelBars(s_u8VehicleFuelOpenCircuitBars);
+		return;
+	}
+
+	low_fuel_blink_on = (boolean_t)((fuel_bars != 1u) || (TRUE == s_bVehicleGearBlinkOn));
 	LedPanel_ShowFuelBars(low_fuel_blink_on ? fuel_bars : 0u);
 }
 
@@ -1174,6 +1226,8 @@ void App_Vehicle_ResetSelfCheck(void)
 	s_u16VehicleFuelSlowTick = 0u;
 	s_u8VehicleFuelPoweronCandidate = 0u;
 	s_u8VehicleFuelPoweronCandidateTicks = 0u;
+	s_bVehicleFuelOpenCircuit = FALSE;
+	s_u8VehicleFuelOpenCircuitBars = 0u;
 	s_u8VehicleGearBlinkTick = 0u;
 	s_bVehicleGearBlinkOn = TRUE;
 	s_u8VehicleClockColonBlinkTick = 0u;
