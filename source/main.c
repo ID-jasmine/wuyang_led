@@ -14,13 +14,7 @@
 #include "product_config.h"
 #include "system_runtime.h"
 
-<<<<<<< HEAD
-#define SLEEP_TIME			1500
-#define APP_NORMAL_FUNCTION (1u)
-void sys_init(void);
-=======
 #define SLEEP_TIME PRODUCT_DEEP_SLEEP_DELAY_MS
->>>>>>> 0d5f761515939cc801e4aa035b9a14de6b639cea
 
 static volatile uint8_t check_self_Start = 0; // 自检
 static volatile uint8_t IGN_ON_OFF = 0;		  // 电门
@@ -41,6 +35,7 @@ int32_t main(void)
 		{
 		}
 	}
+	g_system_init_done = 1u;
 
 #if (PRODUCT_NORMAL_FUNCTION == 0u)
 	(void)DRV_EEPROM_ClearMileageAreas();
@@ -113,15 +108,8 @@ int32_t main(void)
 		{
 			if (DeepSleep_cnt >= SLEEP_TIME)
 			{
-<<<<<<< HEAD
-				DRV_ADC_DeInit();
-				Bsp_Gpio_InitSleepPins();
-				BSP_WDT_Feed();
-				g_lpm_wakeup_checking = 1u;
-=======
 				SystemRuntime_PrepareDeepSleep();
-				g_lpm_adc_checking = 1u;
->>>>>>> 0d5f761515939cc801e4aa035b9a14de6b639cea
+				g_lpm_wakeup_checking = 1u;
 
 				BSP_LPM_EnterDeepSleep();
 
@@ -164,38 +152,13 @@ int32_t main(void)
 #endif
 }
 
-<<<<<<< HEAD
-void sys_init(void)
-{
-	g_system_init_done = 0u;
-	BSP_WDT_Init();
-	BSP_SysTick_Init();
-	/* 等待主电源、时钟和外围器件稳定。 */
-	BSP_SYS_DelayMs(50u);
-
-	(void)Bsp_Gpio_Init();
-	(void)DRV_EEPROM_Init();
-	BSP_WDT_Feed();
-	(void)DRV_Input_Init();
-	DRV_Button_Init();
-	(void)DRV_RTC_Init(12, 0); // 明确忽略返回值
-	(void)DEV_SpeedRpm_Init();
-	(void)LedPanel_Init();
-	DRV_ADC_Init();
-	BSP_WDT_Feed();
-	g_system_init_done = 1u;
-}
-
-=======
->>>>>>> 0d5f761515939cc801e4aa035b9a14de6b639cea
 void SysTick_IRQHandler(void)
 {
 	// 1ms,一次
 	BSP_SYS_TickInc();
 
-<<<<<<< HEAD
 	/*
-	 * 初始化期间只维护系统时间，
+	 * 初始化和低功耗唤醒检查期间只维护系统时间，
 	 * 不运行依赖其他模块的周期任务。
 	 */
 	if ((0u == g_system_init_done) || (0u != g_lpm_wakeup_checking))
@@ -203,13 +166,7 @@ void SysTick_IRQHandler(void)
 		return;
 	}
 
-	DEV_SpeedRpm_Task1ms();
-	DRV_Input_Task1ms();
-	DRV_ADC_Task1ms();
-	DRV_Button_Task1ms();
-=======
 	SystemRuntime_Task1ms();
->>>>>>> 0d5f761515939cc801e4aa035b9a14de6b639cea
 
 	// 电门开关检测
 	if (TRUE == DRV_ADC_IsIgnActive())
