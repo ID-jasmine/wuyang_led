@@ -1,6 +1,7 @@
 #ifndef __BSP_IIC_H__
 #define __BSP_IIC_H__
 
+#include "board_config.h"
 #include "ddl.h"
 #include <stdint.h>
 
@@ -9,11 +10,10 @@ extern "C"
 {
 #endif
 
-	typedef enum
-	{
-		BspIicBusIdEeprom = 0u,
-		BspIicBusIdCount,
-	} en_bsp_iic_bus_id_t;
+	typedef en_board_iic_bus_id_t en_bsp_iic_bus_id_t;
+
+#define BspIicBusIdEeprom BoardIicBusIdEeprom
+#define BspIicBusIdCount  BoardIicBusIdCount
 
 	typedef enum
 	{

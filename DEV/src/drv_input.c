@@ -2,9 +2,13 @@
 
 typedef struct stc_drv_input_cfg
 {
+	boolean_t enabled;
 	en_bsp_gpio_id_t gpio_id;
 	boolean_t active_level;
-	uint16_t debounce_ms;
+	boolean_t initialize_from_input;
+	boolean_t initial_active;
+	uint16_t assert_delay_ms;
+	uint16_t release_delay_ms;
 } stc_drv_input_cfg_t;
 
 typedef struct stc_drv_input_state
@@ -15,33 +19,61 @@ typedef struct stc_drv_input_state
 } stc_drv_input_state_t;
 
 static const stc_drv_input_cfg_t s_astDrvInputCfg[DrvInputIdCount] = {
-	[DrvInputIdPositionLamp] = {.gpio_id = BspGpioIdPositionLamp,
+	[DrvInputIdPositionLamp] = {.enabled = TRUE,
+								.gpio_id = BspGpioIdPositionLamp,
 								.active_level = TRUE,
-								.debounce_ms = 10u},
-	[DrvInputIdGearN] = {.gpio_id = BspGpioIdGearN,
+								.initialize_from_input = TRUE,
+								.initial_active = FALSE,
+								.assert_delay_ms = 10u,
+								.release_delay_ms = 10u},
+	[DrvInputIdGearN] = {.enabled = TRUE,
+						 .gpio_id = BspGpioIdGearN,
 						 .active_level = FALSE,
-						 .debounce_ms = 10u},
-	[DrvInputIdGear1] = {.gpio_id = BspGpioIdGear1,
+						 .initialize_from_input = TRUE,
+						 .assert_delay_ms = 10u,
+						 .release_delay_ms = 10u},
+	[DrvInputIdGear1] = {.enabled = TRUE,
+						 .gpio_id = BspGpioIdGear1,
 						 .active_level = FALSE,
-						 .debounce_ms = 10u},
-	[DrvInputIdGear2] = {.gpio_id = BspGpioIdGear2,
+						 .initialize_from_input = TRUE,
+						 .assert_delay_ms = 10u,
+						 .release_delay_ms = 10u},
+	[DrvInputIdGear2] = {.enabled = TRUE,
+						 .gpio_id = BspGpioIdGear2,
 						 .active_level = FALSE,
-						 .debounce_ms = 10u},
-	[DrvInputIdGear3] = {.gpio_id = BspGpioIdGear3,
+						 .initialize_from_input = TRUE,
+						 .assert_delay_ms = 10u,
+						 .release_delay_ms = 10u},
+	[DrvInputIdGear3] = {.enabled = TRUE,
+						 .gpio_id = BspGpioIdGear3,
 						 .active_level = FALSE,
-						 .debounce_ms = 10u},
-	[DrvInputIdGear4] = {.gpio_id = BspGpioIdGear4,
+						 .initialize_from_input = TRUE,
+						 .assert_delay_ms = 10u,
+						 .release_delay_ms = 10u},
+	[DrvInputIdGear4] = {.enabled = TRUE,
+						 .gpio_id = BspGpioIdGear4,
 						 .active_level = FALSE,
-						 .debounce_ms = 10u},
-	[DrvInputIdGear5] = {.gpio_id = BspGpioIdGear5,
+						 .initialize_from_input = TRUE,
+						 .assert_delay_ms = 10u,
+						 .release_delay_ms = 10u},
+	[DrvInputIdGear5] = {.enabled = TRUE,
+						 .gpio_id = BspGpioIdGear5,
 						 .active_level = FALSE,
-						 .debounce_ms = 10u},
-	[DrvInputIdGear6] = {.gpio_id = BspGpioIdGear6,
+						 .initialize_from_input = TRUE,
+						 .assert_delay_ms = 10u,
+						 .release_delay_ms = 10u},
+	[DrvInputIdGear6] = {.enabled = TRUE,
+						 .gpio_id = BspGpioIdGear6,
 						 .active_level = FALSE,
-						 .debounce_ms = 10u},
-	[DrvInputIdEnginefault] = {.gpio_id = BspGpioIdEnginefault,
+						 .initialize_from_input = TRUE,
+						 .assert_delay_ms = 10u,
+						 .release_delay_ms = 10u},
+	[DrvInputIdEnginefault] = {.enabled = TRUE,
+							   .gpio_id = BspGpioIdEnginefault,
 							   .active_level = FALSE,
-							   .debounce_ms = 10u},
+							   .initialize_from_input = TRUE,
+							   .assert_delay_ms = 10u,
+							   .release_delay_ms = 10u},
 };
 
 static stc_drv_input_state_t s_astDrvInputState[DrvInputIdCount];
@@ -69,10 +101,21 @@ static en_result_t DrvInput_InitImpl(void)
 
 	for (i = 0u; i < DrvInputIdCount; i++)
 	{
+		if (FALSE == s_astDrvInputCfg[i].enabled)
+		{
+			continue;
+		}
 		raw_level = Bsp_Gpio_Read(s_astDrvInputCfg[i].gpio_id);
 		s_astDrvInputState[i].raw_level = raw_level;
-		s_astDrvInputState[i].active =
-			DrvInput_RawToActive((en_drv_input_id_t)i, raw_level);
+		if (TRUE == s_astDrvInputCfg[i].initialize_from_input)
+		{
+			s_astDrvInputState[i].active =
+				DrvInput_RawToActive((en_drv_input_id_t)i, raw_level);
+		}
+		else
+		{
+			s_astDrvInputState[i].active = s_astDrvInputCfg[i].initial_active;
+		}
 		s_astDrvInputState[i].stable_cnt = 0u;
 	}
 
@@ -86,6 +129,7 @@ static void DrvInput_Task1msImpl(void)
 	uint8_t i;
 	boolean_t raw_level;
 	boolean_t active;
+	uint16_t delay_ms;
 
 	if (FALSE == s_bDrvInputInited)
 	{
@@ -94,6 +138,10 @@ static void DrvInput_Task1msImpl(void)
 
 	for (i = 0u; i < DrvInputIdCount; i++)
 	{
+		if (FALSE == s_astDrvInputCfg[i].enabled)
+		{
+			continue;
+		}
 		raw_level = Bsp_Gpio_Read(s_astDrvInputCfg[i].gpio_id);
 		active = DrvInput_RawToActive((en_drv_input_id_t)i, raw_level);
 
@@ -104,22 +152,25 @@ static void DrvInput_Task1msImpl(void)
 			continue;
 		}
 
-		if (s_astDrvInputState[i].stable_cnt < s_astDrvInputCfg[i].debounce_ms)
-		{
-			s_astDrvInputState[i].stable_cnt++;
-		}
-		else
+		delay_ms = active ? s_astDrvInputCfg[i].assert_delay_ms
+						  : s_astDrvInputCfg[i].release_delay_ms;
+		if ((0u == delay_ms) ||
+			((uint16_t)(s_astDrvInputState[i].stable_cnt + 1u) >= delay_ms))
 		{
 			s_astDrvInputState[i].active = active;
 			s_astDrvInputState[i].raw_level = raw_level;
 			s_astDrvInputState[i].stable_cnt = 0u;
+		}
+		else
+		{
+			s_astDrvInputState[i].stable_cnt++;
 		}
 	}
 }
 
 static boolean_t DrvInput_IsActiveImpl(en_drv_input_id_t id)
 {
-	if (Ok != DrvInput_CheckId(id))
+	if ((Ok != DrvInput_CheckId(id)) || (FALSE == s_astDrvInputCfg[id].enabled))
 	{
 		return FALSE;
 	}
@@ -129,7 +180,7 @@ static boolean_t DrvInput_IsActiveImpl(en_drv_input_id_t id)
 
 static boolean_t DrvInput_ReadRawImpl(en_drv_input_id_t id)
 {
-	if (Ok != DrvInput_CheckId(id))
+	if ((Ok != DrvInput_CheckId(id)) || (FALSE == s_astDrvInputCfg[id].enabled))
 	{
 		return FALSE;
 	}

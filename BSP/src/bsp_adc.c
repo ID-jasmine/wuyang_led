@@ -4,63 +4,7 @@
 #include "bsp_sys.h"
 #include "gpio.h"
 
-typedef struct stc_bsp_adc_channel_cfg
-{
-	en_gpio_port_t port;
-	en_gpio_pin_t pin;
-	en_adc_samp_ch_sel_t adc_ch;
-} stc_bsp_adc_channel_cfg_t;
-
-static const stc_bsp_adc_channel_cfg_t s_astBspAdcChannelCfg[BspAdcIdCount] = {
-	[BspAdcIdFuel] =
-		{
-			.port = GpioPortA,
-			.pin = GpioPin1,
-			.adc_ch = AdcExInputCH1,
-		},
-	[BspAdcIdAdPower] =
-		{
-			.port = GpioPortA,
-			.pin = GpioPin0,
-			.adc_ch = AdcExInputCH0,
-		},
-	[BspAdcIdWaterTemp] =
-		{
-			.port = GpioPortA,
-			.pin = GpioPin2,
-			.adc_ch = AdcExInputCH2,
-		},
-	[BspAdcIdIgn] =
-		{
-			.port = GpioPortB,
-			.pin = GpioPin11,
-			.adc_ch = AdcExInputCH18,
-		},
-	[BspAdcIdZmIn] =
-		{
-			.port = GpioPortB,
-			.pin = GpioPin12,
-			.adc_ch = AdcExInputCH19,
-		},
-	[BspAdcIdLeftTurn] =
-		{
-			.port = GpioPortA,
-			.pin = GpioPin5,
-			.adc_ch = AdcExInputCH5,
-		},
-	[BspAdcIdHighBeam] =
-		{
-			.port = GpioPortA,
-			.pin = GpioPin6,
-			.adc_ch = AdcExInputCH6,
-		},
-	[BspAdcIdRightTurn] =
-		{
-			.port = GpioPortA,
-			.pin = GpioPin4,
-			.adc_ch = AdcExInputCH4,
-		},
-};
+static uint8_t s_au8BspAdcSqrIndex[BspAdcIdCount];
 
 static en_adc_sqr_chmux_t BspAdc_GetSqrMux(uint8_t index)
 {
@@ -69,7 +13,7 @@ static en_adc_sqr_chmux_t BspAdc_GetSqrMux(uint8_t index)
 
 static en_result_t BspAdc_CheckId(en_bsp_adc_id_t id)
 {
-	if (id >= BspAdcIdCount)
+	if ((id >= BspAdcIdCount) || (FALSE == g_astBoardAdcCfg[id].enabled))
 	{
 		return ErrorInvalidParameter;
 	}
@@ -80,25 +24,43 @@ static en_result_t BspAdc_CheckId(en_bsp_adc_id_t id)
 static void BspAdc_PortInit(void)
 {
 	uint8_t i;
+	const stc_board_pin_cfg_t *pstcPinCfg;
 
 	Sysctrl_SetPeripheralGate(SysctrlPeripheralGpio, TRUE);
 
 	for (i = 0u; i < BspAdcIdCount; i++)
 	{
-		Gpio_SetAnalogMode(s_astBspAdcChannelCfg[i].port, s_astBspAdcChannelCfg[i].pin);
+		if (FALSE == g_astBoardAdcCfg[i].enabled)
+		{
+			continue;
+		}
+		pstcPinCfg = Board_GetPinConfig(g_astBoardAdcCfg[i].pin_id);
+		if (NULL != pstcPinCfg)
+		{
+			Gpio_SetAnalogMode(pstcPinCfg->port, pstcPinCfg->pin);
+		}
 	}
 }
 
 static void BspAdc_PortInitById(en_bsp_adc_id_t id)
 {
+	const stc_board_pin_cfg_t *pstcPinCfg;
+
+	if (Ok != BspAdc_CheckId(id))
+	{
+		return;
+	}
+
+	pstcPinCfg = Board_GetPinConfig(g_astBoardAdcCfg[id].pin_id);
 	Sysctrl_SetPeripheralGate(SysctrlPeripheralGpio, TRUE);
-	Gpio_SetAnalogMode(s_astBspAdcChannelCfg[id].port, s_astBspAdcChannelCfg[id].pin);
+	Gpio_SetAnalogMode(pstcPinCfg->port, pstcPinCfg->pin);
 }
 
 static void BspAdc_CoreInit(void)
 {
 	stc_adc_sqr_cfg_t stcAdcSqrCfg;
 	uint8_t i;
+	uint8_t active_count = 0u;
 
 	DDL_ZERO_STRUCT(stcAdcSqrCfg);
 
@@ -117,14 +79,28 @@ static void BspAdc_CoreInit(void)
 	M0P_ADC->CR1_f.MODE = AdcScanMode;
 	M0P_ADC->CR1_f.ALIGN = AdcAlignRight;
 
-	stcAdcSqrCfg.u8SqrCnt = BspAdcIdCount;
+	for (i = 0u; i < BspAdcIdCount; i++)
+	{
+		s_au8BspAdcSqrIndex[i] = 0xFFu;
+		if (TRUE == g_astBoardAdcCfg[i].enabled)
+		{
+			s_au8BspAdcSqrIndex[i] = active_count;
+			active_count++;
+		}
+	}
+
+	stcAdcSqrCfg.u8SqrCnt = active_count;
 	stcAdcSqrCfg.enResultAcc = AdcResultAccDisable;
 	stcAdcSqrCfg.bSqrDmaTrig = FALSE;
 	Adc_SqrModeCfg(&stcAdcSqrCfg);
 
 	for (i = 0u; i < BspAdcIdCount; i++)
 	{
-		Adc_CfgSqrChannel(BspAdc_GetSqrMux(i), s_astBspAdcChannelCfg[i].adc_ch);
+		if (TRUE == g_astBoardAdcCfg[i].enabled)
+		{
+			Adc_CfgSqrChannel(BspAdc_GetSqrMux(s_au8BspAdcSqrIndex[i]),
+							  g_astBoardAdcCfg[i].channel);
+		}
 	}
 
 	Adc_Enable();
@@ -199,7 +175,7 @@ uint16_t BSP_ADC_GetResult(en_bsp_adc_id_t id)
 		return 0u;
 	}
 
-	return (uint16_t)Adc_GetSqrResult(BspAdc_GetSqrMux((uint8_t)id));
+	return (uint16_t)Adc_GetSqrResult(BspAdc_GetSqrMux(s_au8BspAdcSqrIndex[id]));
 }
 
 /**

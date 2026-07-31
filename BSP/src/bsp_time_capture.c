@@ -2,17 +2,11 @@
 #include "sysctrl.h"
 #include "timer3.h"
 
-#define BSP_TIM3_CAPTURE_CLOCK_HZ	  (250000u)
 #define BSP_TIM3_CAPTURE_PERIOD_TICKS (0x10000u)
 #define BSP_TIM3_CAPTURE_HALF_PERIOD  (0x8000u)
 
 static bsp_tim3_capture_t g_tim3_cap;
 static volatile uint32_t s_u32Tim3BaseTick = 0u;
-
-static const bsp_tim3_cap_pin_t s_atim3_cap_pins[] = {
-	[BSP_TIM3id_speed] = {BSP_TIM3_CAP_CH2A, GpioPortA, GpioPin10, GpioAf2},
-	[BSP_TIM3id_rpm] = {BSP_TIM3_CAP_CH1A, GpioPortA, GpioPin9, GpioAf2},
-};
 
 static en_tim3_channel_t Bsp_Tim3Capture_GetTim3Channel(bsp_tim3_cap_ch_t ch)
 {
@@ -107,6 +101,7 @@ static void Bsp_Tim3Capture_PortInit(void)
 {
 	uint8_t i;
 	stc_gpio_cfg_t gpio_cfg;
+	const stc_board_pin_cfg_t *pstcPinCfg;
 
 	DDL_ZERO_STRUCT(gpio_cfg);
 
@@ -121,9 +116,13 @@ static void Bsp_Tim3Capture_PortInit(void)
 
 	for (i = 0; i < BSP_TIM3id_COUNT; i++)
 	{
-		(void)Gpio_Init(s_atim3_cap_pins[i].port, s_atim3_cap_pins[i].pin, &gpio_cfg);
-		(void)Gpio_SetAfMode(s_atim3_cap_pins[i].port, s_atim3_cap_pins[i].pin,
-							 s_atim3_cap_pins[i].af);
+		if (FALSE == g_astBoardCaptureCfg[i].enabled)
+		{
+			continue;
+		}
+		pstcPinCfg = Board_GetPinConfig(g_astBoardCaptureCfg[i].pin_id);
+		(void)Gpio_Init(pstcPinCfg->port, pstcPinCfg->pin, &gpio_cfg);
+		(void)Gpio_SetAfMode(pstcPinCfg->port, pstcPinCfg->pin, pstcPinCfg->af);
 	}
 }
 
@@ -152,8 +151,12 @@ static void Bsp_Tim3Capture_TimerInit(void)
 
 	for (i = 0; i < BSP_TIM3id_COUNT; i++)
 	{
+		if (FALSE == g_astBoardCaptureCfg[i].enabled)
+		{
+			continue;
+		}
 		(void)Tim3_M23_PortInput_Cfg(
-			Bsp_Tim3Capture_GetTim3Channel(s_atim3_cap_pins[i].ch), &cap_cfg);
+			Bsp_Tim3Capture_GetTim3Channel(g_astBoardCaptureCfg[i].channel), &cap_cfg);
 	}
 
 	(void)Tim3_M23_ARRSet(0xFFFFu, TRUE); // arr
@@ -164,7 +167,11 @@ static void Bsp_Tim3Capture_TimerInit(void)
 	(void)Tim3_Mode23_EnableIrq(Tim3UevIrq);
 	for (i = 0; i < BSP_TIM3id_COUNT; i++)
 	{
-		(void)Tim3_Mode23_EnableIrq(Bsp_Tim3Capture_GetIrqType(s_atim3_cap_pins[i].ch));
+		if (TRUE == g_astBoardCaptureCfg[i].enabled)
+		{
+			(void)Tim3_Mode23_EnableIrq(
+				Bsp_Tim3Capture_GetIrqType(g_astBoardCaptureCfg[i].channel));
+		}
 	}
 	EnableNvic(TIM3_IRQn, IrqLevel2, TRUE);
 	(void)Tim3_M23_Run();
@@ -177,7 +184,7 @@ static void Bsp_Tim3Capture_TimerInit(void)
  */
 en_result_t BSP_TimeCapture_Init(void)
 {
-	g_tim3_cap.timer_clk_hz = BSP_TIM3_CAPTURE_CLOCK_HZ;
+	g_tim3_cap.timer_clk_hz = BOARD_CAPTURE_TIMER_CLOCK_HZ;
 	s_u32Tim3BaseTick = 0u;
 
 	Bsp_Tim3Capture_PortInit();
@@ -225,18 +232,22 @@ void BSP_TimeCapture_IRQHandler(void)
 
 	for (i = 0; i < BSP_TIM3id_COUNT; i++)
 	{
-		irq_type = Bsp_Tim3Capture_GetIrqType(s_atim3_cap_pins[i].ch);
+		if (FALSE == g_astBoardCaptureCfg[i].enabled)
+		{
+			continue;
+		}
+		irq_type = Bsp_Tim3Capture_GetIrqType(g_astBoardCaptureCfg[i].channel);
 		if (TRUE == Tim3_GetIntFlag(irq_type))
 		{
 			cap_value =
-				Tim3_M23_CCR_Get(Bsp_Tim3Capture_GetCcrSel(s_atim3_cap_pins[i].ch));
+				Tim3_M23_CCR_Get(Bsp_Tim3Capture_GetCcrSel(g_astBoardCaptureCfg[i].channel));
 			(void)Tim3_ClearIntFlag(irq_type);
 
 			timestamp = Bsp_Tim3Capture_ExtendTimestamp(cap_value, overflow_pending);
 
 			if (NULL != g_tim3_cap.callback)
 			{
-				g_tim3_cap.callback(s_atim3_cap_pins[i].ch, timestamp,
+				g_tim3_cap.callback(g_astBoardCaptureCfg[i].channel, timestamp,
 									g_tim3_cap.user_data);
 			}
 		}

@@ -1,6 +1,7 @@
 #ifndef __BSP_TIME_CAPTURE_H__
 #define __BSP_TIME_CAPTURE_H__
 
+#include "board_config.h"
 #include "ddl.h"
 #include "gpio.h"
 
@@ -9,34 +10,24 @@ extern "C"
 {
 #endif
 
-	typedef enum
-	{
-		BSP_TIM3_CAP_CH0A = 0,
-		BSP_TIM3_CAP_CH0B,
-		BSP_TIM3_CAP_CH1A,
-		BSP_TIM3_CAP_CH1B,
-		BSP_TIM3_CAP_CH2A,
-		BSP_TIM3_CAP_CH2B,
-		BSP_TIM3_CAP_CH_COUNT
-	} bsp_tim3_cap_ch_t;
+	typedef en_board_capture_channel_t bsp_tim3_cap_ch_t;
+
+#define BSP_TIM3_CAP_CH0A BoardCaptureChannel0A
+#define BSP_TIM3_CAP_CH0B BoardCaptureChannel0B
+#define BSP_TIM3_CAP_CH1A BoardCaptureChannel1A
+#define BSP_TIM3_CAP_CH1B BoardCaptureChannel1B
+#define BSP_TIM3_CAP_CH2A BoardCaptureChannel2A
+#define BSP_TIM3_CAP_CH2B BoardCaptureChannel2B
+#define BSP_TIM3_CAP_CH_COUNT (BoardCaptureChannel2B + 1u)
 
 	typedef void (*bsp_tim3_cap_cb_t)(bsp_tim3_cap_ch_t ch, uint32_t timestamp,
 									  void *user_data);
 
-	typedef enum
-	{
-		BSP_TIM3id_speed = 0,
-		BSP_TIM3id_rpm,
-		BSP_TIM3id_COUNT,
-	} en_bsp_tim3_id_t;
+	typedef en_board_capture_id_t en_bsp_tim3_id_t;
 
-	typedef struct
-	{
-		bsp_tim3_cap_ch_t ch;
-		en_gpio_port_t port;
-		en_gpio_pin_t pin;
-		en_gpio_af_t af;
-	} bsp_tim3_cap_pin_t;
+#define BSP_TIM3id_speed BoardCaptureIdSpeed
+#define BSP_TIM3id_rpm   BoardCaptureIdRpm
+#define BSP_TIM3id_COUNT BoardCaptureIdCount
 
 	typedef struct
 	{

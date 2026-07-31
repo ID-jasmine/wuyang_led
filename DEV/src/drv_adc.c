@@ -1,5 +1,6 @@
 #include "drv_adc.h"
 
+#include "bsp_adc.h"
 #include "bsp_sys.h"
 
 #define DRV_ADC_SAMPLE_COUNT		  (10u)
@@ -24,10 +25,21 @@
 	 DRV_ADC_REF_MV)
 #define DRV_ADC_SWITCH_ON_MS (50u)
 
-static uint16_t s_au16DrvAdcAvg[BspAdcIdCount];
-static uint32_t s_au32DrvAdcSum[BspAdcIdCount];
-static uint16_t s_au16DrvAdcSwitchOnCnt[BspAdcIdCount];
-static boolean_t s_abDrvAdcSwitchActive[BspAdcIdCount];
+static const en_bsp_adc_id_t s_aenDrvAdcBspMap[DrvAdcSignalCount] = {
+	[DrvAdcSignalFuel] = BspAdcIdFuel,
+	[DrvAdcSignalPowerReference] = BspAdcIdAdPower,
+	[DrvAdcSignalWaterTemp] = BspAdcIdWaterTemp,
+	[DrvAdcSignalIgn] = BspAdcIdIgn,
+	[DrvAdcSignalBrightness] = BspAdcIdZmIn,
+	[DrvAdcSignalLeftTurn] = BspAdcIdLeftTurn,
+	[DrvAdcSignalHighBeam] = BspAdcIdHighBeam,
+	[DrvAdcSignalRightTurn] = BspAdcIdRightTurn,
+};
+
+static uint16_t s_au16DrvAdcAvg[DrvAdcSignalCount];
+static uint32_t s_au32DrvAdcSum[DrvAdcSignalCount];
+static uint16_t s_au16DrvAdcSwitchOnCnt[DrvAdcSignalCount];
+static boolean_t s_abDrvAdcSwitchActive[DrvAdcSignalCount];
 static uint8_t s_u8DrvAdcSampleCount = 0u;
 static boolean_t s_bDrvAdcReady = FALSE;
 static boolean_t s_bDrvAdcInited = FALSE;
@@ -36,9 +48,9 @@ static boolean_t s_bDrvAdcIgnActive = FALSE;
 static uint16_t s_au16DrvAdcIgnLowVoltageCnt = 0u;
 static boolean_t s_au16DrvAdcIgnLowVoltageActive = FALSE;
 
-static en_result_t DrvAdc_CheckId(en_bsp_adc_id_t id)
+static en_result_t DrvAdc_CheckId(en_drv_adc_signal_t id)
 {
-	if (id >= BspAdcIdCount)
+	if (id >= DrvAdcSignalCount)
 	{
 		return ErrorInvalidParameter;
 	}
@@ -46,15 +58,15 @@ static en_result_t DrvAdc_CheckId(en_bsp_adc_id_t id)
 	return Ok;
 }
 
-static boolean_t DrvAdc_IsResistanceSensorId(en_bsp_adc_id_t id)
+static boolean_t DrvAdc_IsResistanceSensorId(en_drv_adc_signal_t id)
 {
-	return ((BspAdcIdFuel == id) || (BspAdcIdWaterTemp == id)) ? TRUE : FALSE;
+	return ((DrvAdcSignalFuel == id) || (DrvAdcSignalWaterTemp == id)) ? TRUE : FALSE;
 }
 
-static boolean_t DrvAdc_IsSwitchSensorId(en_bsp_adc_id_t id)
+static boolean_t DrvAdc_IsSwitchSensorId(en_drv_adc_signal_t id)
 {
-	return ((BspAdcIdLeftTurn == id) || (BspAdcIdHighBeam == id) ||
-			(BspAdcIdRightTurn == id))
+	return ((DrvAdcSignalLeftTurn == id) || (DrvAdcSignalHighBeam == id) ||
+			(DrvAdcSignalRightTurn == id))
 			   ? TRUE
 			   : FALSE;
 }
@@ -86,7 +98,7 @@ static void DrvAdc_UpdateIgnState(uint16_t raw)
 	}
 }
 
-static void DrvAdc_UpdateSwitchState(en_bsp_adc_id_t id, uint16_t raw)
+static void DrvAdc_UpdateSwitchState(en_drv_adc_signal_t id, uint16_t raw)
 {
 	if (FALSE == DrvAdc_IsSwitchSensorId(id))
 	{
@@ -142,7 +154,7 @@ void DRV_ADC_Init(void)
 {
 	uint8_t i;
 
-	for (i = 0u; i < BspAdcIdCount; i++)
+	for (i = 0u; i < DrvAdcSignalCount; i++)
 	{
 		s_au16DrvAdcAvg[i] = 0u;
 		s_au32DrvAdcSum[i] = 0u;
@@ -177,16 +189,20 @@ void DRV_ADC_Task1ms(void)
 
 	DrvAdc_StartAndWait();
 
-	for (id = 0u; id < BspAdcIdCount; id++)
+	for (id = 0u; id < DrvAdcSignalCount; id++)
 	{
-		s_au32DrvAdcSum[id] += BSP_ADC_GetResult((en_bsp_adc_id_t)id);
+		s_au32DrvAdcSum[id] += BSP_ADC_GetResult(s_aenDrvAdcBspMap[id]);
 	}
 
-	DrvAdc_UpdateIgnState(BSP_ADC_GetResult(BspAdcIdIgn));
-	DrvAdc_UpdateIgnLowVoltageState(BSP_ADC_GetResult(BspAdcIdIgn));
-	DrvAdc_UpdateSwitchState(BspAdcIdLeftTurn, BSP_ADC_GetResult(BspAdcIdLeftTurn));
-	DrvAdc_UpdateSwitchState(BspAdcIdHighBeam, BSP_ADC_GetResult(BspAdcIdHighBeam));
-	DrvAdc_UpdateSwitchState(BspAdcIdRightTurn, BSP_ADC_GetResult(BspAdcIdRightTurn));
+	DrvAdc_UpdateIgnState(BSP_ADC_GetResult(s_aenDrvAdcBspMap[DrvAdcSignalIgn]));
+	DrvAdc_UpdateIgnLowVoltageState(
+		BSP_ADC_GetResult(s_aenDrvAdcBspMap[DrvAdcSignalIgn]));
+	DrvAdc_UpdateSwitchState(DrvAdcSignalLeftTurn,
+						 BSP_ADC_GetResult(s_aenDrvAdcBspMap[DrvAdcSignalLeftTurn]));
+	DrvAdc_UpdateSwitchState(DrvAdcSignalHighBeam,
+						 BSP_ADC_GetResult(s_aenDrvAdcBspMap[DrvAdcSignalHighBeam]));
+	DrvAdc_UpdateSwitchState(DrvAdcSignalRightTurn,
+						 BSP_ADC_GetResult(s_aenDrvAdcBspMap[DrvAdcSignalRightTurn]));
 
 	if (s_u8DrvAdcSampleCount < DRV_ADC_SAMPLE_COUNT)
 	{
@@ -195,7 +211,7 @@ void DRV_ADC_Task1ms(void)
 
 	if (s_u8DrvAdcSampleCount >= DRV_ADC_SAMPLE_COUNT)
 	{
-		for (id = 0u; id < BspAdcIdCount; id++)
+		for (id = 0u; id < DrvAdcSignalCount; id++)
 		{
 			s_au16DrvAdcAvg[id] = (uint16_t)(s_au32DrvAdcSum[id] / DRV_ADC_SAMPLE_COUNT);
 			s_au32DrvAdcSum[id] = 0u;
@@ -225,7 +241,7 @@ boolean_t DRV_ADC_CheckIgnOnce(uint8_t sample_count)
 	{
 		DrvAdc_StartAndWait();
 
-		raw = BSP_ADC_GetResult(BspAdcIdIgn);
+		raw = BSP_ADC_GetResult(s_aenDrvAdcBspMap[DrvAdcSignalIgn]);
 
 		if (raw >= DRV_ADC_IGN_ON_RAW)
 		{
@@ -258,17 +274,17 @@ boolean_t DRV_ADC_IsIgnActive(void)
 
 boolean_t DRV_ADC_IsLeftTurnActive(void)
 {
-	return s_abDrvAdcSwitchActive[BspAdcIdLeftTurn];
+	return s_abDrvAdcSwitchActive[DrvAdcSignalLeftTurn];
 }
 
 boolean_t DRV_ADC_IsRightTurnActive(void)
 {
-	return s_abDrvAdcSwitchActive[BspAdcIdRightTurn];
+	return s_abDrvAdcSwitchActive[DrvAdcSignalRightTurn];
 }
 
 boolean_t DRV_ADC_IsHighBeamActive(void)
 {
-	return s_abDrvAdcSwitchActive[BspAdcIdHighBeam];
+	return s_abDrvAdcSwitchActive[DrvAdcSignalHighBeam];
 }
 
 boolean_t DRV_ADC_IsIgnLowVoltageActive(void)
@@ -281,7 +297,7 @@ boolean_t DRV_ADC_IsIgnLowVoltageActive(void)
  * @param id ADC 通道 ID。
  * @return uint16_t 平均滤波后的采样值；参数非法时返回 `0`。
  */
-uint16_t DRV_ADC_GetAvg(en_bsp_adc_id_t id)
+uint16_t DRV_ADC_GetAvg(en_drv_adc_signal_t id)
 {
 	if (Ok != DrvAdc_CheckId(id))
 	{
@@ -291,7 +307,7 @@ uint16_t DRV_ADC_GetAvg(en_bsp_adc_id_t id)
 	return s_au16DrvAdcAvg[id];
 }
 
-uint16_t DRV_ADC_GetResistanceOhm(en_bsp_adc_id_t id)
+uint16_t DRV_ADC_GetResistanceOhm(en_drv_adc_signal_t id)
 {
 	uint32_t sensor_adc;
 	uint32_t power_adc;
@@ -305,7 +321,7 @@ uint16_t DRV_ADC_GetResistanceOhm(en_bsp_adc_id_t id)
 	}
 
 	sensor_adc = s_au16DrvAdcAvg[id];
-	power_adc = s_au16DrvAdcAvg[BspAdcIdAdPower];
+	power_adc = s_au16DrvAdcAvg[DrvAdcSignalPowerReference];
 	if ((0u == power_adc) || (sensor_adc >= power_adc))
 	{
 		return DRV_ADC_RESISTANCE_INVALID_OHM;
@@ -336,7 +352,7 @@ void DRV_ADC_DeInit(void)
 	s_bDrvAdcIgnActive = FALSE;
 	s_au16DrvAdcIgnLowVoltageCnt = 0u;
 	s_au16DrvAdcIgnLowVoltageActive = FALSE;
-	for (i = 0u; i < BspAdcIdCount; i++)
+	for (i = 0u; i < DrvAdcSignalCount; i++)
 	{
 		s_au16DrvAdcSwitchOnCnt[i] = 0u;
 		s_abDrvAdcSwitchActive[i] = FALSE;
