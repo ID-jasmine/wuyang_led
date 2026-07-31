@@ -477,8 +477,8 @@ static void App_Vehicle_ShowMileage(void)
 #elif (APP_VEHICLE_TEST_SHOW_LIGHT_RAW_ON_ODO != 0u)
 	LedPanel_Set(LedPanelIdOdo, TRUE);
 	LedPanel_Set(LedPanelIdMileageKm, TRUE);
-	(void)LedPanel_ShowTotalOdometer(DRV_ADC_IsReady() ? DRV_ADC_GetAvg(DrvAdcSignalBrightness)
-													   : 0u);
+	(void)LedPanel_ShowTotalOdometer(
+		DRV_ADC_IsReady() ? DRV_ADC_GetAvg(DrvAdcSignalBrightness) : 0u);
 #else
 	LedPanel_Set(s_bVehicleMileageTripDisplay ? LedPanelIdTrip : LedPanelIdOdo, TRUE);
 
@@ -1267,6 +1267,7 @@ boolean_t App_Vehicle_SelfCheckTask10ms(void)
 
 #if (APP_VEHICLE_TEST_HOLD_FULL_DISPLAY != 0u)
 			/* 测试模式：自检结束后保持全显，不进入正常画面。 */
+			LedPanel_SetBrightness(APP_VEHICLE_BRIGHTNESS_MAX);
 			LedPanel_Fill();
 			LedPanel_Refresh();
 #else
