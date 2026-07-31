@@ -12,8 +12,8 @@
 #include "drv_rtc.h"
 #include "led_panel.h"
 
-#define SLEEP_TIME								  1500
-#define APP_NORMAL_FUNCTION						  (1u)
+#define SLEEP_TIME			1500
+#define APP_NORMAL_FUNCTION (1u)
 void sys_init(void);
 
 static volatile uint8_t check_self_Start = 0; // 自检
@@ -22,7 +22,9 @@ static volatile uint16_t IGN_CNT = 0;		  // 电门计数器
 static volatile uint8_t rtc_time_500ms_flag = 0;
 static volatile uint8_t last_ign_state = 0xFF; // 用于记录电门上一次的状态，以捕捉动作瞬间
 static volatile uint16_t DeepSleep_cnt = 0;
-static volatile uint8_t g_lpm_adc_checking = 0u;
+
+static volatile uint8_t g_lpm_wakeup_checking = 0u;
+static volatile uint8_t g_system_init_done = 0u;
 
 int32_t main(void)
 {
@@ -102,7 +104,7 @@ int32_t main(void)
 				DRV_ADC_DeInit();
 				Bsp_Gpio_InitSleepPins();
 				BSP_WDT_Feed();
-				g_lpm_adc_checking = 1u;
+				g_lpm_wakeup_checking = 1u;
 
 				BSP_LPM_EnterDeepSleep();
 
@@ -125,7 +127,7 @@ int32_t main(void)
 
 						IGN_ON_OFF = 1u;
 						DeepSleep_cnt = 0u;
-						g_lpm_adc_checking = 0u;
+						g_lpm_wakeup_checking = 0u;
 					}
 					else
 					{
@@ -152,16 +154,23 @@ int32_t main(void)
 
 void sys_init(void)
 {
+	g_system_init_done = 0u;
+	BSP_WDT_Init();
 	BSP_SysTick_Init();
+	/* 等待主电源、时钟和外围器件稳定。 */
+	BSP_SYS_DelayMs(50u);
+
 	(void)Bsp_Gpio_Init();
 	(void)DRV_EEPROM_Init();
+	BSP_WDT_Feed();
 	(void)DRV_Input_Init();
 	DRV_Button_Init();
 	(void)DRV_RTC_Init(12, 0); // 明确忽略返回值
 	(void)DEV_SpeedRpm_Init();
 	(void)LedPanel_Init();
 	DRV_ADC_Init();
-	BSP_WDT_Init();
+	BSP_WDT_Feed();
+	g_system_init_done = 1u;
 }
 
 void SysTick_IRQHandler(void)
@@ -169,15 +178,20 @@ void SysTick_IRQHandler(void)
 	// 1ms,一次
 	BSP_SYS_TickInc();
 
+	/*
+	 * 初始化期间只维护系统时间，
+	 * 不运行依赖其他模块的周期任务。
+	 */
+	if ((0u == g_system_init_done) || (0u != g_lpm_wakeup_checking))
+	{
+		return;
+	}
+
 	DEV_SpeedRpm_Task1ms();
 	DRV_Input_Task1ms();
 	DRV_ADC_Task1ms();
 	DRV_Button_Task1ms();
 
-	if (g_lpm_adc_checking)
-	{
-		return;
-	}
 	// 电门开关检测
 	if (TRUE == DRV_ADC_IsIgnActive())
 	{

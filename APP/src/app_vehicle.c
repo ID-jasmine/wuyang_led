@@ -52,6 +52,7 @@
 #define APP_VEHICLE_ODOMETER_PULSES_PER_TENTH  (APP_VEHICLE_ODOMETER_PULSES_PER_KM / 10u)
 #define APP_VEHICLE_TRIP_MAX_TENTHS			   (9999u)
 #define APP_VEHICLE_TOTAL_MAX_TENTHS		   (9999990u)
+#define APP_VEHICLE_TEST_HOLD_FULL_DISPLAY	   (1u) // 1自检后全显 0恢复正常显示
 #define APP_VEHICLE_TEST_SHOW_FREQ_X100_ON_ODO (0u)
 #define APP_VEHICLE_TEST_SHOW_LIGHT_RAW_ON_ODO (0u)
 #define APP_VEHICLE_FREQ_MEASURE			   DEV_SPEED_RPM_DEFAULT_MEASURE
@@ -1263,16 +1264,23 @@ boolean_t App_Vehicle_SelfCheckTask10ms(void)
 		if (s_u16VehicleSelfCheckTick >= APP_VEHICLE_SELF_CHECK_TICKS)
 		{
 			s_bVehicleSelfCheckStarted = TRUE;
+
+#if (APP_VEHICLE_TEST_HOLD_FULL_DISPLAY != 0u)
+			/* 测试模式：自检结束后保持全显，不进入正常画面。 */
+			LedPanel_Fill();
+			LedPanel_Refresh();
+#else
 			App_Vehicle_ShowNormalFrame();
+#endif
 		}
 	}
 
+#if (APP_VEHICLE_TEST_HOLD_FULL_DISPLAY != 0u)
+	/* 保持返回 FALSE，让 main() 继续调用自检任务，不被正常画面覆盖。 */
+	return FALSE;
+#else
 	return s_bVehicleSelfCheckStarted;
-
-	// 卡在全亮
-	// LedPanel_Fill();
-	// LedPanel_Refresh();
-	// return FALSE;
+#endif
 }
 
 void App_Vehicle_NotifyRtcTick500ms(void)
