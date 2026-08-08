@@ -15,6 +15,8 @@
 
 en_result_t SystemRuntime_Init(void)
 {
+	BSP_WDT_Init();
+
 	en_result_t result = Ok;
 
 	if (Ok != Board_ConfigValidate())
@@ -23,6 +25,9 @@ en_result_t SystemRuntime_Init(void)
 	}
 
 	BSP_SysTick_Init();
+
+	BSP_SYS_DelayMs(50u);
+
 	if (Ok != Bsp_Gpio_Init())
 	{
 		result = Error;
@@ -40,6 +45,9 @@ en_result_t SystemRuntime_Init(void)
 		result = Error;
 	}
 	DRV_Button_Init();
+
+	BSP_WDT_Feed();
+
 	if (Ok != DRV_RTC_Init(12u, 0u))
 	{
 		result = Error;
@@ -63,7 +71,6 @@ en_result_t SystemRuntime_Init(void)
 	DRV_ADC_Init();
 #endif
 
-	BSP_WDT_Init();
 	return result;
 }
 
