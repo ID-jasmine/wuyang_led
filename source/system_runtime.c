@@ -15,14 +15,14 @@
 
 en_result_t SystemRuntime_Init(void)
 {
-	BSP_WDT_Init();
-
 	en_result_t result = Ok;
 
 	if (Ok != Board_ConfigValidate())
 	{
 		return ErrorInvalidParameter;
 	}
+
+	BSP_WDT_Init();
 
 	BSP_SysTick_Init();
 

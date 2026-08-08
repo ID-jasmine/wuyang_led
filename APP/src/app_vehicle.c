@@ -650,12 +650,15 @@ static uint32_t App_Vehicle_GetCurrentEngineRpm(void)
 		return 0u;
 	}
 
-	denominator = APP_VEHICLE_MILLIHZ_PER_HZ * APP_VEHICLE_RPM_RATIO_DENOMINATOR *
-				  APP_VEHICLE_HALL_POLE_PAIRS;
+	// denominator = APP_VEHICLE_MILLIHZ_PER_HZ * APP_VEHICLE_RPM_RATIO_DENOMINATOR *
+	// 			  APP_VEHICLE_HALL_POLE_PAIRS;
 
-	return (uint32_t)(((uint64_t)freq_mhz * 60u * APP_VEHICLE_RPM_RATIO_NUMERATOR +
-					   (denominator / 2u)) /
-					  denominator);
+	denominator = APP_VEHICLE_MILLIHZ_PER_HZ;
+
+	// return (uint32_t)(((uint64_t)freq_mhz * 60u * APP_VEHICLE_RPM_RATIO_NUMERATOR +
+	// 				   (denominator / 2u)) /
+	// 				  denominator);
+	return (uint32_t)(((uint64_t)freq_mhz * 60u + (denominator / 2u)) / denominator);
 }
 
 static uint8_t App_Vehicle_GetCurrentRpmBarCount(void)
